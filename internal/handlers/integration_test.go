@@ -1,0 +1,102 @@
+package handlers
+
+import (
+	"bible-api-service/internal/middleware"
+	"bible-api-service/internal/secrets"
+	"bytes"
+	"context"
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"testing"
+)
+
+type mockSecretsClient struct {
+	getSecretFunc func(ctx context.Context, name string) (string, error)
+}
+
+func (m *mockSecretsClient) GetSecret(ctx context.Context, name string) (string, error) {
+	return m.getSecretFunc(ctx, name)
+}
+
+var _ secrets.Client = &mockSecretsClient{}
+
+func TestQueryEndpointIntegration(t *testing.T) {
+	if os.Getenv("INTEGRATION_TESTS") == "" {
+		t.Skip("skipping integration tests")
+	}
+
+	secretsClient := &mockSecretsClient{
+		getSecretFunc: func(ctx context.Context, name string) (string, error) {
+			if name == "API_KEY" {
+				return os.Getenv("API_KEY"), nil
+			}
+			return "", errors.New("secret not found")
+		},
+	}
+	authMiddleware := middleware.NewAuthMiddleware(secretsClient)
+	handler := NewQueryHandler()
+	server := httptest.NewServer(middleware.Logging(authMiddleware.APIKeyAuth(handler)))
+	defer server.Close()
+
+	t.Run("verse query", func(t *testing.T) {
+		reqBody := `{
+			"query": {
+				"verses": ["John 3:16"]
+			}
+		}`
+		req, _ := http.NewRequest("POST", server.URL+"/query", bytes.NewBufferString(reqBody))
+		req.Header.Set("X-API-KEY", os.Getenv("API_KEY"))
+
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatalf("failed to make request: %v", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("expected status code %d, got %d", http.StatusOK, resp.StatusCode)
+		}
+	})
+
+	t.Run("open query", func(t *testing.T) {
+		reqBody := `{
+			"query": {
+				"oquery": "Who was Moses?"
+			}
+		}`
+		req, _ := http.NewRequest("POST", server.URL+"/query", bytes.NewBufferString(reqBody))
+		req.Header.Set("X-API-KEY", os.Getenv("API_KEY"))
+
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatalf("failed to make request: %v", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusInternalServerError {
+			t.Errorf("expected status code %d, got %d", http.StatusInternalServerError, resp.StatusCode)
+		}
+	})
+
+	t.Run("word search query", func(t *testing.T) {
+		reqBody := `{
+			"query": {
+				"words": ["grace"]
+			}
+		}`
+		req, _ := http.NewRequest("POST", server.URL+"/query", bytes.NewBufferString(reqBody))
+		req.Header.Set("X-API-KEY", os.Getenv("API_KEY"))
+
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatalf("failed to make request: %v", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("expected status code %d, got %d", http.StatusOK, resp.StatusCode)
+		}
+	})
+}

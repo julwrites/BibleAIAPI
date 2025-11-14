@@ -14,24 +14,25 @@ import (
 	"github.com/thomaspoignant/go-feature-flag/ffcontext"
 )
 
-type QueryRequest struct {
-	Query struct {
-		Verses []string `json:"verses"`
-		Words  []string `json:"words"`
-		OQuery string   `json:"oquery"`
-	} `json:"query"`
-	Context struct {
-		Instruction string   `json:"instruction"`
-		PQuery      []string `json:"pquery"`
-		Verses      []string `json:"verses"`
-		Words       []string `json:"words"`
-		User        struct {
-			Version string `json:"version"`
-		} `json:"user"`
-	} `json:"context"`
+// QueryHandler is the main handler for the /query endpoint.
+type QueryHandler struct {
+	BibleGatewayClient BibleGatewayClient
+	GetLLMClient       GetLLMClient
 }
 
-func QueryHandler(w http.ResponseWriter, r *http.Request) {
+// NewQueryHandler creates a new QueryHandler with default clients.
+func NewQueryHandler() *QueryHandler {
+	llmClient, _ := llm.GetClient()
+	return &QueryHandler{
+		BibleGatewayClient: biblegateway.NewScraper(),
+		GetLLMClient: func() (llm.LLMClient, error) {
+			return llmClient, nil
+		},
+	}
+}
+
+// ServeHTTP handles the HTTP request.
+func (h *QueryHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var request QueryRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		util.JSONError(w, http.StatusBadRequest, "Invalid request payload")
@@ -43,90 +44,108 @@ func QueryHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if request.Context.Instruction != "" {
-		handleInstruction(w, r, request)
+		h.handleInstruction(w, r, request)
 	} else {
-		handleDirectQuery(w, r, request)
+		h.handleDirectQuery(w, r, request)
 	}
 }
 
-func handleDirectQuery(w http.ResponseWriter, r *http.Request, request QueryRequest) {
+func (h *QueryHandler) handleDirectQuery(w http.ResponseWriter, r *http.Request, request QueryRequest) {
 	if len(request.Query.Verses) > 0 {
-		var verseText []string
-		for _, verseRef := range request.Query.Verses {
-			verse, err := biblegateway.GetVerse(verseRef, request.Context.User.Version)
-			if err != nil {
-				util.JSONError(w, http.StatusInternalServerError, "Failed to get verse")
-				return
-			}
-			verseText = append(verseText, verse.Text)
-		}
-		json.NewEncoder(w).Encode(map[string]string{"verse": strings.Join(verseText, "\n")})
+		h.handleVerseQuery(w, r, request)
 	} else if len(request.Query.Words) > 0 {
-		var allResults []biblegateway.SearchResult
-		for _, word := range request.Query.Words {
-			results, err := biblegateway.SearchWords(word, request.Context.User.Version)
-			if err != nil {
-				util.JSONError(w, http.StatusInternalServerError, "Failed to search words")
-				return
-			}
-			allResults = append(allResults, results...)
-		}
-		json.NewEncoder(w).Encode(allResults)
+		h.handleWordSearchQuery(w, r, request)
 	} else if request.Query.OQuery != "" {
-		llmClient, err := llm.GetClient()
-		if err != nil {
-			util.JSONError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-
-		schema := `{
-			"name": "oquery_response",
-			"description": "A response to an open-ended query.",
-			"parameters": {
-				"type": "object",
-				"properties": {
-					"text": {
-						"type": "string",
-						"description": "The text response to the query."
-					},
-					"references": {
-						"type": "array",
-						"items": {
-							"type": "object",
-							"properties": {
-								"verse": {
-									"type": "string",
-									"description": "A relevant Bible verse reference."
-								},
-								"url": {
-									"type": "string",
-									"description": "A URL to the verse on Bible Gateway."
-								}
-							}
-						}
-					}
-				}
-			}
-		}`
-		response, err := llmClient.Query(r.Context(), request.Query.OQuery, schema)
-		if err != nil {
-			util.JSONError(w, http.StatusInternalServerError, "Failed to query LLM")
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		var result map[string]interface{}
-		if err := json.Unmarshal([]byte(response), &result); err != nil {
-			util.JSONError(w, http.StatusInternalServerError, "Failed to parse LLM response")
-			return
-		}
-		json.NewEncoder(w).Encode(result)
+		h.handleOpenQuery(w, r, request)
 	} else {
 		util.JSONError(w, http.StatusBadRequest, "No query provided")
 	}
 }
 
-func handleInstruction(w http.ResponseWriter, r *http.Request, request QueryRequest) {
+func (h *QueryHandler) handleVerseQuery(w http.ResponseWriter, r *http.Request, request QueryRequest) {
+	var verseText []string
+	for _, verseRef := range request.Query.Verses {
+		parts := strings.Split(verseRef, " ")
+		book := parts[0]
+		chapterAndVerse := strings.Split(parts[1], ":")
+		chapter := chapterAndVerse[0]
+		verseNum := chapterAndVerse[1]
+
+		verse, err := h.BibleGatewayClient.GetVerse(book, chapter, verseNum, request.Context.User.Version)
+		if err != nil {
+			util.JSONError(w, http.StatusInternalServerError, "Failed to get verse")
+			return
+		}
+		verseText = append(verseText, verse)
+	}
+	json.NewEncoder(w).Encode(map[string]string{"verse": strings.Join(verseText, "\n")})
+}
+
+func (h *QueryHandler) handleWordSearchQuery(w http.ResponseWriter, r *http.Request, request QueryRequest) {
+	var allResults []biblegateway.SearchResult
+	for _, word := range request.Query.Words {
+		results, err := h.BibleGatewayClient.SearchWords(word, request.Context.User.Version)
+		if err != nil {
+			util.JSONError(w, http.StatusInternalServerError, "Failed to search words")
+			return
+		}
+		allResults = append(allResults, results...)
+	}
+	json.NewEncoder(w).Encode(allResults)
+}
+
+func (h *QueryHandler) handleOpenQuery(w http.ResponseWriter, r *http.Request, request QueryRequest) {
+	schema := `{
+		"name": "oquery_response",
+		"description": "A response to an open-ended query.",
+		"parameters": {
+			"type": "object",
+			"properties": {
+				"text": {
+					"type": "string",
+					"description": "The text response to the query."
+				},
+				"references": {
+					"type": "array",
+					"items": {
+						"type": "object",
+						"properties": {
+							"verse": {
+								"type": "string",
+								"description": "A relevant Bible verse reference."
+							},
+							"url": {
+								"type": "string",
+								"description": "A URL to the verse on Bible Gateway."
+							}
+						}
+					}
+				}
+			}
+		}
+	}`
+	llmClient, err := h.GetLLMClient()
+	if err != nil {
+		util.JSONError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	response, err := llmClient.Query(r.Context(), request.Query.OQuery, schema)
+	if err != nil {
+		util.JSONError(w, http.StatusInternalServerError, "Failed to query LLM")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	var result map[string]interface{}
+	if err := json.Unmarshal([]byte(response), &result); err != nil {
+		util.JSONError(w, http.StatusInternalServerError, "Failed to parse LLM response")
+		return
+	}
+	json.NewEncoder(w).Encode(result)
+}
+
+func (h *QueryHandler) handleInstruction(w http.ResponseWriter, r *http.Request, request QueryRequest) {
 	evalCtx := ffcontext.NewEvaluationContext("anonymous")
 	instructionData, err := gofeatureflag.JSONVariation(request.Context.Instruction, evalCtx, map[string]interface{}{})
 	if err != nil {
@@ -142,12 +161,6 @@ func handleInstruction(w http.ResponseWriter, r *http.Request, request QueryRequ
 	schema, ok := instructionData["schema"].(string)
 	if !ok {
 		util.JSONError(w, http.StatusInternalServerError, "Invalid schema in feature flag")
-		return
-	}
-
-	llmClient, err := llm.GetClient()
-	if err != nil {
-		util.JSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -179,6 +192,11 @@ func handleInstruction(w http.ResponseWriter, r *http.Request, request QueryRequ
 		return
 	}
 
+	llmClient, err := h.GetLLMClient()
+	if err != nil {
+		util.JSONError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
 	response, err := llmClient.Query(r.Context(), processedPrompt.String(), schema)
 	if err != nil {
 		util.JSONError(w, http.StatusInternalServerError, "Failed to query LLM")

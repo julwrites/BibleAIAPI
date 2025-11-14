@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"os"
 
 	"github.com/tmc/langchaingo/llms"
 	"github.com/tmc/langchaingo/llms/openai"
@@ -14,6 +15,9 @@ type OpenAIClient struct {
 }
 
 func NewOpenAIClient() (*OpenAIClient, error) {
+	if os.Getenv("OPENAI_API_KEY") == "" {
+		return nil, errors.New("OPENAI_API_KEY environment variable not set")
+	}
 	llm, err := openai.New()
 	if err != nil {
 		return nil, err

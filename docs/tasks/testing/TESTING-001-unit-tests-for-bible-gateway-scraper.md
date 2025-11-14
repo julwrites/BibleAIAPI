@@ -2,7 +2,7 @@
 
 ## Task Information
 - **Task ID**: TESTING-001
-- **Status**: pending
+- **Status**: completed
 - **Priority**: high
 - **Phase**: 2
 - **Estimated Effort**: 1 day
@@ -14,12 +14,12 @@
 This task involves writing unit tests for the Bible Gateway scraper located in `internal/biblegateway/scraper.go`. The tests should cover both the `GetVerse` and `SearchWords` functions and ensure that the HTML parsing logic is robust and correct.
 
 ### Acceptance Criteria
-- [ ] Unit tests for the `GetVerse` function are implemented.
-- [ ] Unit tests for the `SearchWords` function are implemented.
-- [ ] Tests use mock HTML responses to avoid actual network calls.
-- [ ] Tests cover successful parsing scenarios.
-- [ ] Tests cover scenarios where the HTML structure is unexpected or missing elements.
-- [ ] All tests pass.
+- [x] Unit tests for the `GetVerse` function are implemented.
+- [x] Unit tests for the `SearchWords` function are implemented.
+- [x] Tests use mock HTML responses to avoid actual network calls.
+- [x] Tests cover successful parsing scenarios.
+- [x] Tests cover scenarios where the HTML structure is unexpected or missing elements.
+- [x] All tests pass.
 
 ### Implementation Notes
 - The `net/http/httptest` package can be used to create a mock HTTP server.
