@@ -1,0 +1,155 @@
+openapi: 3.0.0
+info:
+  title: Bible API Service
+  version: 1.0.0
+  description: An API for querying and interacting with Bible verses.
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+paths:
+  /query:
+    post:
+      summary: Submit a query
+      description: >-
+        Submits a query to the Bible API service. The query can be a Bible verse
+        reference, a word/phrase, or an open-ended question. The behavior of the
+        endpoint changes based on whether an instruction is provided.
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QueryRequest'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/VerseResponse'
+                  - $ref: '#/components/schemas/WordSearchResponse'
+                  - $ref: '#/components/schemas/OQueryResponse'
+                  - type: object
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-KEY
+
+  schemas:
+    QueryRequest:
+      type: object
+      properties:
+        query:
+          type: object
+          properties:
+            verses:
+              type: array
+              items:
+                type: string
+                example: "John 1:12"
+            words:
+              type: array
+              items:
+                type: string
+                example: "Grace"
+            oquery:
+              type: string
+              example: "How many people did Jesus feed?"
+        context:
+          type: object
+          properties:
+            instruction:
+              type: string
+              example: "summarize"
+            pquery:
+              type: array
+              items:
+                type: string
+            verses:
+              type: array
+              items:
+                type: string
+            words:
+              type: array
+              items:
+                type: string
+            user:
+              type: object
+              properties:
+                version:
+                  type: string
+                  example: "ESV"
+
+    VerseResponse:
+      type: object
+      properties:
+        verse:
+          type: string
+          example: "John 3:16 (ESV) For God so loved the world, that he gave his only Son, that whoever believes in him should not perish but have eternal life."
+
+    WordSearchResponse:
+      type: array
+      items:
+        type: object
+        properties:
+          verse:
+            type: string
+            example: "Romans 3:24"
+          url:
+            type: string
+            example: "https://classic.biblegateway.com/passage/?search=Romans+3%3A24&version=ESV"
+
+    OQueryResponse:
+      type: object
+      properties:
+        text:
+          type: string
+          example: "Jesus fed 5,000 men, not including women and children."
+        references:
+          type: array
+          items:
+            type: object
+            properties:
+              verse:
+                type: string
+                example: "Matthew 14:21"
+              url:
+                type: string
+                example: "https://classic.biblegateway.com/passage/?search=Matthew+14%3A21&version=ESV"
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: integer
+              example: 401
+            message:
+              type: string
+              example: "Invalid API Key"

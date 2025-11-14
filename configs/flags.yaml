@@ -1,0 +1,16 @@
+summarize:
+  prompt: "Summarize the following verses: {{.verses}}"
+  schema: |
+    {
+      "type": "object",
+      "properties": {
+        "summary": {
+          "type": "string",
+          "description": "A concise summary of the provided verses."
+        }
+      },
+      "required": ["summary"]
+    }
+  default:
+    prompt: "No prompt configured for this instruction."
+    schema: "{}"
