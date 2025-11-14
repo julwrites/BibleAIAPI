@@ -48,18 +48,19 @@ jobs:
         id: project
         run: echo "project_number=$(gcloud projects describe ${{ env.GCP_PROJECT_ID }} --format='value(projectNumber)')" >> $GITHUB_OUTPUT
 
+
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          tags: ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/bible-api/bible-api-service:latest
+          tags: ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/bible-ai-api/bible-api-service:latest
 
       - name: Deploy to Google Cloud Run
         uses: google-github-actions/deploy-cloudrun@v2
         with:
           service: bible-api-service
-          image: ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/bible-api/bible-api-service:latest
+          image: ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/bible-ai-api/bible-api-service:latest
           region: us-central1
 
       - name: Grant Secret Manager access to the Cloud Run service account
