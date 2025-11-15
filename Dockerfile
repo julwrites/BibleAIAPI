@@ -12,5 +12,6 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o /server ./cmd/server
 FROM alpine:latest
 WORKDIR /
 COPY --from=build /server /server
+COPY configs /configs
 EXPOSE 8080
 ENTRYPOINT ["/server"]
