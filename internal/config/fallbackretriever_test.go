@@ -60,7 +60,7 @@ func TestFallbackRetriever_Retrieve(t *testing.T) {
 			secondaryResponse: nil,
 			secondaryError:    errors.New("secondary failed"),
 			expectedResponse:  nil,
-			expectedError:     errors.New("secondary failed"),
+			expectedError:     errors.New("failed to retrieve flags from both primary and secondary retrievers: secondary failed"),
 		},
 	}
 
@@ -76,10 +76,7 @@ func TestFallbackRetriever_Retrieve(t *testing.T) {
 					return tt.secondaryResponse, tt.secondaryError
 				},
 			}
-			retriever := &FallbackRetriever{
-				Primary:   primary,
-				Secondary: secondary,
-			}
+			retriever := NewFallbackRetriever(primary, secondary)
 
 			response, err := retriever.Retrieve(context.Background())
 
@@ -87,12 +84,7 @@ func TestFallbackRetriever_Retrieve(t *testing.T) {
 				t.Errorf("unexpected response: got %q, want %q", response, tt.expectedResponse)
 			}
 
-			if !cmp.Equal(err, tt.expectedError, cmp.Comparer(func(x, y error) bool {
-				if x == nil || y == nil {
-					return x == y
-				}
-				return x.Error() == y.Error()
-			})) {
+			if (err != nil && tt.expectedError == nil) || (err == nil && tt.expectedError != nil) || (err != nil && tt.expectedError != nil && err.Error() != tt.expectedError.Error()) {
 				t.Errorf("unexpected error: got %v, want %v", err, tt.expectedError)
 			}
 		})

@@ -6,45 +6,43 @@ import (
 	"log"
 
 	"github.com/thomaspoignant/go-feature-flag/retriever"
-	"github.com/thomaspoignant/go-feature-flag/retriever/fileretriever"
-	"github.com/thomaspoignant/go-feature-flag/retriever/githubretriever"
 )
 
-// fallbackRetriever is a custom retriever that falls back to a file if the GitHub retriever fails.
-type fallbackRetriever struct {
-	githubRetriever retriever.Retriever
-	fileRetriever   retriever.Retriever
+// FallbackRetriever is a custom retriever that falls back to a file if the GitHub retriever fails.
+type FallbackRetriever struct {
+	Primary   retriever.Retriever
+	Secondary retriever.Retriever
 }
 
-// NewFallbackRetriever creates a new instance of the fallbackRetriever.
-func NewFallbackRetriever(githubConfig *githubretriever.Retriever, fileConfig *fileretriever.Retriever) retriever.Retriever {
-	return &fallbackRetriever{
-		githubRetriever: githubConfig,
-		fileRetriever:   fileConfig,
+// NewFallbackRetriever creates a new instance of the FallbackRetriever.
+func NewFallbackRetriever(primary, secondary retriever.Retriever) *FallbackRetriever {
+	return &FallbackRetriever{
+		Primary:   primary,
+		Secondary: secondary,
 	}
 }
 
-// Retrieve attempts to get the flags from GitHub and falls back to the local file.
-func (r *fallbackRetriever) Retrieve(ctx context.Context) ([]byte, error) {
-	// Try to get the flags from GitHub first.
-	flags, err := r.githubRetriever.Retrieve(ctx)
+// Retrieve attempts to get the flags from the primary retriever and falls back to the secondary.
+func (r *FallbackRetriever) Retrieve(ctx context.Context) ([]byte, error) {
+	// Try to get the flags from the primary retriever first.
+	flags, err := r.Primary.Retrieve(ctx)
 	if err == nil {
-		log.Println("Successfully retrieved feature flags from GitHub.")
+		log.Println("Successfully retrieved feature flags from primary retriever.")
 		return flags, nil
 	}
 
-	// If GitHub fails, log a warning and try the file retriever.
-	log.Printf("Failed to retrieve feature flags from GitHub: %v. Falling back to local file.", err)
-	flags, err = r.fileRetriever.Retrieve(ctx)
+	// If the primary retriever fails, log a warning and try the secondary.
+	log.Printf("Failed to retrieve feature flags from primary retriever: %v. Falling back to secondary.", err)
+	flags, err = r.Secondary.Retrieve(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve flags from both GitHub and local file: %w", err)
+		return nil, fmt.Errorf("failed to retrieve flags from both primary and secondary retrievers: %w", err)
 	}
 
-	log.Println("Successfully retrieved feature flags from local file.")
+	log.Println("Successfully retrieved feature flags from secondary retriever.")
 	return flags, nil
 }
 
 // Name returns the name of the retriever.
-func (r *fallbackRetriever) Name() string {
+func (r *FallbackRetriever) Name() string {
 	return "fallbackRetriever"
 }

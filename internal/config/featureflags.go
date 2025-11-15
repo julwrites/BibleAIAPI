@@ -20,7 +20,9 @@ func InitFeatureFlags() {
 		Retriever: NewFallbackRetriever(
 			&githubretriever.Retriever{
 				RepositorySlug: "julwrites/BibleAIAPI",
+				Branch:         "main",
 				FilePath:       "configs/flags.yaml",
+				GithubToken:    githubToken,
 			},
 			&fileretriever.Retriever{
 				Path: "configs/flags.yaml",
