@@ -11,7 +11,11 @@ import (
 )
 
 type OpenAIClient struct {
-	llm *openai.LLM
+	llm llms.Model
+}
+
+func NewOpenAI(llm llms.Model) *OpenAIClient {
+	return &OpenAIClient{llm: llm}
 }
 
 func NewOpenAIClient() (*OpenAIClient, error) {
@@ -22,7 +26,7 @@ func NewOpenAIClient() (*OpenAIClient, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &OpenAIClient{llm: llm}, nil
+	return NewOpenAI(llm), nil
 }
 
 func (c *OpenAIClient) Query(ctx context.Context, prompt string, schemaJSON string) (string, error) {

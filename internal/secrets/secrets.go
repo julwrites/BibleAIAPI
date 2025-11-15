@@ -5,22 +5,34 @@ import (
 	"fmt"
 
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
+	"github.com/googleapis/gax-go/v2"
 	secretmanagerpb "google.golang.org/genproto/googleapis/cloud/secretmanager/v1"
 )
 
+// secretManagerClient is an interface that wraps the AccessSecretVersion method.
+type secretManagerClient interface {
+	AccessSecretVersion(ctx context.Context, req *secretmanagerpb.AccessSecretVersionRequest, opts ...gax.CallOption) (*secretmanagerpb.AccessSecretVersionResponse, error)
+	Close() error
+}
+
 // googleSecretManagerClient is a client for interacting with Google Secret Manager.
 type googleSecretManagerClient struct {
-	client    *secretmanager.Client
+	client    secretManagerClient
 	projectID string
+}
+
+func New(client secretManagerClient, projectID string) Client {
+	return &googleSecretManagerClient{client: client, projectID: projectID}
 }
 
 // NewClient creates a new Secret Manager client.
 func NewClient(ctx context.Context, projectID string) (Client, error) {
-	client, err := secretmanager.NewClient(ctx)
+	c, err := secretmanager.NewClient(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create secret manager client: %v", err)
 	}
-	return &googleSecretManagerClient{client: client, projectID: projectID}, nil
+
+	return New(c, projectID), nil
 }
 
 // GetSecret retrieves a secret from Secret Manager.

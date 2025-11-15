@@ -10,7 +10,11 @@ import (
 )
 
 type GeminiClient struct {
-	llm *googleai.GoogleAI
+	llm llms.Model
+}
+
+func NewGemini(llm llms.Model) *GeminiClient {
+	return &GeminiClient{llm: llm}
 }
 
 func NewGeminiClient() (*GeminiClient, error) {
@@ -18,7 +22,7 @@ func NewGeminiClient() (*GeminiClient, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &GeminiClient{llm: llm}, nil
+	return NewGemini(llm), nil
 }
 
 func (c *GeminiClient) Query(ctx context.Context, prompt string, schemaJSON string) (string, error) {

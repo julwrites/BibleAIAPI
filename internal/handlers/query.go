@@ -10,7 +10,6 @@ import (
 	"strings"
 	"text/template"
 
-	gofeatureflag "github.com/thomaspoignant/go-feature-flag"
 	"github.com/thomaspoignant/go-feature-flag/ffcontext"
 )
 
@@ -18,6 +17,7 @@ import (
 type QueryHandler struct {
 	BibleGatewayClient BibleGatewayClient
 	GetLLMClient       GetLLMClient
+	FFClient           FFClient
 }
 
 // NewQueryHandler creates a new QueryHandler with default clients.
@@ -28,6 +28,7 @@ func NewQueryHandler() *QueryHandler {
 		GetLLMClient: func() (llm.LLMClient, error) {
 			return llmClient, nil
 		},
+		FFClient: &GoFeatureFlagClient{},
 	}
 }
 
@@ -147,7 +148,7 @@ func (h *QueryHandler) handleOpenQuery(w http.ResponseWriter, r *http.Request, r
 
 func (h *QueryHandler) handleInstruction(w http.ResponseWriter, r *http.Request, request QueryRequest) {
 	evalCtx := ffcontext.NewEvaluationContext("anonymous")
-	instructionData, err := gofeatureflag.JSONVariation(request.Context.Instruction, evalCtx, map[string]interface{}{})
+	instructionData, err := h.FFClient.JSONVariation(request.Context.Instruction, evalCtx, map[string]interface{}{})
 	if err != nil {
 		util.JSONError(w, http.StatusInternalServerError, "Failed to evaluate feature flag")
 		return
