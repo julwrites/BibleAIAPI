@@ -10,6 +10,10 @@ import (
 )
 
 func InitFeatureFlags() {
+	githubToken := os.Getenv("GITHUB_TOKEN")
+	if githubToken == "" {
+		log.Println("GITHUB_TOKEN is not set. Feature flags may not be retrieved from GitHub.")
+	}
 	err := gofeatureflag.Init(gofeatureflag.Config{
 		PollingInterval: 10 * time.Second,
 		Retriever: NewFallbackRetriever(

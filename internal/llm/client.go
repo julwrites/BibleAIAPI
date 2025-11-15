@@ -6,6 +6,11 @@ import (
 	"os"
 )
 
+var (
+	NewOpenAIClientFunc = NewOpenAIClient
+	NewGeminiClientFunc = NewGeminiClient
+)
+
 type LLMClient interface {
 	Query(ctx context.Context, prompt string, schema string) (string, error)
 }
@@ -18,9 +23,9 @@ func GetClient() (LLMClient, error) {
 
 	switch llmProvider {
 	case "openai":
-		return NewOpenAIClient()
+		return NewOpenAIClientFunc()
 	case "gemini":
-		return NewGeminiClient()
+		return NewGeminiClientFunc()
 	default:
 		return nil, fmt.Errorf("unsupported LLM provider: %s", llmProvider)
 	}
