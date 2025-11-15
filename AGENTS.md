@@ -37,16 +37,6 @@ To run the tests, use the following command:
 go test ./...
 ```
 
-## Code Coverage
-
-This project enforces a high standard of code coverage. All new code should be accompanied by tests, and the overall code coverage should not drop. The CI/CD pipeline will fail if the code coverage drops.
-
-To run the tests with coverage, use the following command:
-
-```bash
-go test -v -cover ./...
-```
-
 ## Code Style
 
 This project follows standard Go formatting. Use `gofmt` to format your code before committing.
