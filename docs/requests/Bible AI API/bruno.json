@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "Bible AI API",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}

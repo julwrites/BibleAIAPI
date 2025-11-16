@@ -8,6 +8,10 @@ import (
 	"testing"
 )
 
+func normalizeSpace(s string) string {
+	return strings.Join(strings.Fields(s), " ")
+}
+
 func TestGetVerse(t *testing.T) {
 	testCases := []struct {
 		name       string
