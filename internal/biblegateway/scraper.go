@@ -54,8 +54,13 @@ func (s *Scraper) GetVerse(book, chapter, verse, version string) (string, error)
 		return "", err
 	}
 
-	verseText := doc.Find(".passage-text .text").First().Text()
-	if verseText == "" {
+	passage := doc.Find(".passage-text")
+	passage.Find(".footnotes").Remove()
+	passage.Find(".crossrefs").Remove()
+
+	verseText := passage.Text()
+
+	if verseText == "" || strings.Contains(verseText, "No results found") {
 		return "", fmt.Errorf("verse not found")
 	}
 
