@@ -41,6 +41,9 @@ jobs:
           coverage-threshold: 70
           cover-pkg: ./...
           fetch-depth: 10
+          ignore-pattern: |
+            _test.go$
+            docs/.*
 
       - name: Integration Test
         run: |
