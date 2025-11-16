@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/thomaspoignant/go-feature-flag/ffcontext"
 )
 
 type mockBibleGatewayClient struct {
@@ -145,5 +147,92 @@ func TestHandleOpenQuery(t *testing.T) {
 	if response["text"] != expected {
 		t.Errorf("handler returned unexpected body: got %v want %v",
 			response["text"], expected)
+	}
+}
+
+type mockFFClient struct {
+	jsonVariationFunc func(flagKey string, context ffcontext.EvaluationContext, defaultValue map[string]interface{}) (map[string]interface{}, error)
+}
+
+func (m *mockFFClient) JSONVariation(flagKey string, context ffcontext.EvaluationContext, defaultValue map[string]interface{}) (map[string]interface{}, error) {
+	return m.jsonVariationFunc(flagKey, context, defaultValue)
+}
+
+func TestHandleInstruction(t *testing.T) {
+	handler := &QueryHandler{
+		FFClient: &mockFFClient{
+			jsonVariationFunc: func(flagKey string, context ffcontext.EvaluationContext, defaultValue map[string]interface{}) (map[string]interface{}, error) {
+				return map[string]interface{}{
+					"prompt": "test prompt",
+					"schema": "test schema",
+				}, nil
+			},
+		},
+		GetLLMClient: func() (provider.LLMClient, error) {
+			return &mockLLMClient{
+				queryFunc: func(ctx context.Context, query, schema string) (string, error) {
+					return `{"response": "test response"}`, nil
+				},
+			}, nil
+		},
+	}
+
+	reqBody := `{
+		"context": {
+			"instruction": "test_instruction"
+		},
+		"query": {
+			"oquery": "test query"
+		}
+	}`
+	req := httptest.NewRequest("POST", "/query", bytes.NewBufferString(reqBody))
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got %v want %v",
+			status, http.StatusOK)
+	}
+
+	var response map[string]string
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	expected := "test response"
+	if response["response"] != expected {
+		t.Errorf("handler returned unexpected body: got %v want %v",
+			response["response"], expected)
+	}
+}
+
+func TestInvalidRequestPayload(t *testing.T) {
+	handler := &QueryHandler{}
+
+	reqBody := `{invalid json}`
+	req := httptest.NewRequest("POST", "/query", bytes.NewBufferString(reqBody))
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusBadRequest {
+		t.Errorf("handler returned wrong status code: got %v want %v",
+			status, http.StatusBadRequest)
+	}
+}
+
+func TestNoQueryProvided(t *testing.T) {
+	handler := &QueryHandler{}
+
+	reqBody := `{}`
+	req := httptest.NewRequest("POST", "/query", bytes.NewBufferString(reqBody))
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusBadRequest {
+		t.Errorf("handler returned wrong status code: got %v want %v",
+			status, http.StatusBadRequest)
 	}
 }

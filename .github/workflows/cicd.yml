@@ -11,6 +11,9 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     env:
       GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
       GAR_LOCATION: ${{ secrets.GAR_LOCATION }}
@@ -33,7 +36,17 @@ jobs:
         run: go build -v ./...
 
       - name: Test
-        run: go test -v ./...
+        run: go test -v -coverprofile=coverage.out ./...
+
+      - name: Check coverage
+        uses: gwatts/go-coverage-action@v2
+        with:
+          coverage-threshold: 70
+          cover-pkg: ./...
+          fetch-depth: 10
+          ignore-pattern: |
+            _test.go$
+            docs/.*
 
       - name: Integration Test
         run: |
