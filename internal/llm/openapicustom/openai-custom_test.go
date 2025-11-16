@@ -1,4 +1,4 @@
-package llm
+package openapicustom
 
 import (
 	"context"
@@ -10,17 +10,42 @@ import (
 	"github.com/tmc/langchaingo/llms"
 )
 
-func TestNewGeminiClient(t *testing.T) {
+type mockLLM struct {
+	generateContentFunc func(context.Context, []llms.MessageContent, ...llms.CallOption) (*llms.ContentResponse, error)
+}
+
+func (m *mockLLM) GenerateContent(ctx context.Context, messages []llms.MessageContent, options ...llms.CallOption) (*llms.ContentResponse, error) {
+	if m.generateContentFunc != nil {
+		return m.generateContentFunc(ctx, messages, options...)
+	}
+	return nil, errors.New("generateContentFunc not implemented")
+}
+
+func (m *mockLLM) Call(ctx context.Context, prompt string, options ...llms.CallOption) (string, error) {
+	return "", errors.New("not implemented")
+}
+
+func TestNewClient(t *testing.T) {
 	t.Run("No API key", func(t *testing.T) {
-		os.Unsetenv("GEMINI_API_KEY")
-		_, err := NewGeminiClient()
+		os.Unsetenv("OPENAI_CUSTOM_API_KEY")
+		_, err := NewClient()
 		if err == nil {
-			t.Error("expected error when GEMINI_API_KEY is not set")
+			t.Error("expected error when OPENAI_CUSTOM_API_KEY is not set")
+		}
+	})
+
+	t.Run("No base URL", func(t *testing.T) {
+		os.Setenv("OPENAI_CUSTOM_API_KEY", "test-key")
+		defer os.Unsetenv("OPENAI_CUSTOM_API_KEY")
+		os.Unsetenv("OPENAI_CUSTOM_BASE_URL")
+		_, err := NewClient()
+		if err == nil {
+			t.Error("expected error when OPENAI_CUSTOM_BASE_URL is not set")
 		}
 	})
 }
 
-func TestGeminiClient_Query(t *testing.T) {
+func TestOpenAICustomClient_Query(t *testing.T) {
 	tests := []struct {
 		name          string
 		prompt        string
@@ -33,14 +58,14 @@ func TestGeminiClient_Query(t *testing.T) {
 		{
 			name:   "Successful query",
 			prompt: "test prompt",
-			schema: `{"name": "test_tool", "description": "A test tool", "parameters": {"type": "object", "properties": {}}}`,
+			schema: "{\"name\": \"test_tool\", \"description\": \"A test tool\", \"parameters\": {\"type\": \"object\", \"properties\": {}}}",
 			mockResponse: &llms.ContentResponse{
 				Choices: []*llms.ContentChoice{
 					{
 						ToolCalls: []llms.ToolCall{
 							{
 								FunctionCall: &llms.FunctionCall{
-									Arguments: `{"key": "value"}`,
+									Arguments: "{\"key\": \"value\"}",
 								},
 							},
 						},
@@ -48,13 +73,13 @@ func TestGeminiClient_Query(t *testing.T) {
 				},
 			},
 			mockError:     nil,
-			expectedValue: `{"key": "value"}`,
+			expectedValue: "{\"key\": \"value\"}",
 			expectedError: nil,
 		},
 		{
 			name:          "No tool call in response",
 			prompt:        "test prompt",
-			schema:        `{"name": "test_tool", "description": "A test tool", "parameters": {"type": "object", "properties": {}}}`,
+			schema:        "{\"name\": \"test_tool\", \"description\": \"A test tool\", \"parameters\": {\"type\": \"object\", \"properties\": {}}}",
 			mockResponse:  &llms.ContentResponse{Choices: []*llms.ContentChoice{}},
 			mockError:     nil,
 			expectedValue: "",
@@ -69,7 +94,7 @@ func TestGeminiClient_Query(t *testing.T) {
 					return tt.mockResponse, tt.mockError
 				},
 			}
-			client := NewGemini(mock)
+			client := NewOpenAICustom(mock)
 
 			value, err := client.Query(context.Background(), tt.prompt, tt.schema)
 

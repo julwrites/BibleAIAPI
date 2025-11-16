@@ -2,31 +2,78 @@ package llm
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"os"
+	"strings"
+	"time"
+
+	"bible-api-service/internal/llm/deepseek"
+	"bible-api-service/internal/llm/gemini"
+	"bible-api-service/internal/llm/openai"
+	"bible-api-service/internal/llm/openapicustom"
+	"bible-api-service/internal/llm/provider"
+	"github.com/gofor-little/env"
 )
 
-var (
-	NewOpenAIClientFunc = NewOpenAIClient
-	NewGeminiClientFunc = NewGeminiClient
-)
-
-type LLMClient interface {
-	Query(ctx context.Context, prompt string, schema string) (string, error)
+// FallbackClient is a client that tries a list of providers in order until one succeeds.
+type FallbackClient struct {
+	clients []provider.LLMClient
 }
 
-func GetClient() (LLMClient, error) {
-	llmProvider := os.Getenv("LLM_PROVIDER")
-	if llmProvider == "" {
-		llmProvider = "openai" // Default to openai
+// NewFallbackClient creates a new FallbackClient with the providers specified in the LLM_PROVIDERS environment variable.
+func NewFallbackClient() (*FallbackClient, error) {
+	providerNames, err := env.MustGet("LLM_PROVIDERS")
+	if err != nil {
+		return nil, errors.New("LLM_PROVIDERS environment variable not set")
 	}
 
-	switch llmProvider {
-	case "openai":
-		return NewOpenAIClientFunc()
-	case "gemini":
-		return NewGeminiClientFunc()
-	default:
-		return nil, fmt.Errorf("unsupported LLM provider: %s", llmProvider)
+	providers := strings.Split(providerNames, ",")
+	clients := make([]provider.LLMClient, 0, len(providers))
+
+	for _, p := range providers {
+		var client provider.LLMClient
+		var err error
+
+		switch p {
+		case "openai":
+			client, err = openai.NewClient()
+		case "openai-custom":
+			client, err = openapicustom.NewClient()
+		case "deepseek":
+			client, err = deepseek.NewClient()
+		case "gemini":
+			client, err = gemini.NewClient()
+		default:
+			// Optionally log a warning for unsupported providers
+			continue
+		}
+
+		if err == nil && client != nil {
+			clients = append(clients, client)
+		}
 	}
+
+	if len(clients) == 0 {
+		return nil, errors.New("no valid LLM clients could be created")
+	}
+
+	return &FallbackClient{clients: clients}, nil
+}
+
+// Query tries each client in order until one succeeds.
+func (c *FallbackClient) Query(ctx context.Context, prompt string, schema string) (string, error) {
+	var lastErr error
+
+	for _, client := range c.clients {
+		ctxWithTimeout, cancel := context.WithTimeout(ctx, 1*time.Minute)
+
+		result, err := client.Query(ctxWithTimeout, prompt, schema)
+		cancel()
+		if err == nil {
+			return result, nil
+		}
+		lastErr = err
+	}
+
+	return "", fmt.Errorf("all LLM providers failed: %w", lastErr)
 }

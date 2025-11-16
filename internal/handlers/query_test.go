@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"bible-api-service/internal/biblegateway"
-	"bible-api-service/internal/llm"
+	"bible-api-service/internal/llm/provider"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -112,7 +112,7 @@ func (m *mockLLMClient) Query(ctx context.Context, query, schema string) (string
 
 func TestHandleOpenQuery(t *testing.T) {
 	handler := &QueryHandler{
-		GetLLMClient: func() (llm.LLMClient, error) {
+		GetLLMClient: func() (provider.LLMClient, error) {
 			return &mockLLMClient{
 				queryFunc: func(ctx context.Context, query, schema string) (string, error) {
 					return `{"text": "Jesus fed 5,000 men."}`, nil
