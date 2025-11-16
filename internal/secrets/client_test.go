@@ -16,15 +16,15 @@ func TestNew(t *testing.T) {
 }
 
 func TestNewClient(t *testing.T) {
-	// This test is primarily to ensure the NewClient function is covered.
-	// In a real-world scenario, you might not be able to test the failure case
-	// without credentials, but we can at least test the successful creation.
-	t.Run("Failure case", func(t *testing.T) {
-		_, err := NewClient(context.Background(), "test-project")
-		if err == nil {
-			t.Logf("NewClient succeeded, which is unexpected without credentials, but we'll count it as a pass for coverage purposes.")
-		} else {
-			t.Logf("NewClient failed as expected without credentials: %v", err)
-		}
-	})
+	// This test verifies that the NewClient function falls back to the
+	// environment variable client when it fails to create a Google Secret
+	// Manager client. This is the expected behavior in a local test
+	// environment where credentials are not available.
+	client, err := NewClient(context.Background(), "test-project")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if _, ok := client.(*EnvClient); !ok {
+		t.Errorf("expected an env client, but got %T", client)
+	}
 }
