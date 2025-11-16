@@ -2,8 +2,7 @@ package handlers
 
 import (
 	"bible-api-service/internal/biblegateway"
-	"bible-api-service/internal/llm"
-	"context"
+	"bible-api-service/internal/llm/provider"
 )
 
 // BibleGatewayClient defines the interface for the Bible Gateway client.
@@ -13,9 +12,7 @@ type BibleGatewayClient interface {
 }
 
 // LLMClient defines the interface for the LLM client.
-type LLMClient interface {
-	Query(ctx context.Context, query, schema string) (string, error)
-}
+type LLMClient provider.LLMClient
 
 // GetLLMClient defines the function signature for getting an LLM client.
-type GetLLMClient func() (llm.LLMClient, error)
+type GetLLMClient func() (provider.LLMClient, error)

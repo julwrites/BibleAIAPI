@@ -1,11 +1,12 @@
-package llm
+package openai
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
-	"os"
 
+	"bible-api-service/internal/llm/provider"
+	"github.com/gofor-little/env"
 	"github.com/tmc/langchaingo/llms"
 	"github.com/tmc/langchaingo/llms/openai"
 )
@@ -14,15 +15,17 @@ type OpenAIClient struct {
 	llm llms.Model
 }
 
-func NewOpenAI(llm llms.Model) *OpenAIClient {
+func NewOpenAI(llm llms.Model) provider.LLMClient {
 	return &OpenAIClient{llm: llm}
 }
 
-func NewOpenAIClient() (*OpenAIClient, error) {
-	if os.Getenv("OPENAI_API_KEY") == "" {
+func NewClient() (provider.LLMClient, error) {
+	apiKey, err := env.MustGet("OPENAI_API_KEY")
+	if err != nil {
 		return nil, errors.New("OPENAI_API_KEY environment variable not set")
 	}
-	llm, err := openai.New()
+
+	llm, err := openai.New(openai.WithToken(apiKey))
 	if err != nil {
 		return nil, err
 	}

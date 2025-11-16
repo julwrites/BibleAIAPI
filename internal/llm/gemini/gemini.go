@@ -1,10 +1,12 @@
-package llm
+package gemini
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
 
+	"bible-api-service/internal/llm/provider"
+	"github.com/gofor-little/env"
 	"github.com/tmc/langchaingo/llms"
 	"github.com/tmc/langchaingo/llms/googleai"
 )
@@ -13,12 +15,17 @@ type GeminiClient struct {
 	llm llms.Model
 }
 
-func NewGemini(llm llms.Model) *GeminiClient {
+func NewGemini(llm llms.Model) provider.LLMClient {
 	return &GeminiClient{llm: llm}
 }
 
-func NewGeminiClient() (*GeminiClient, error) {
-	llm, err := googleai.New(context.Background())
+func NewClient() (provider.LLMClient, error) {
+	apiKey, err := env.MustGet("GEMINI_API_KEY")
+	if err != nil {
+		return nil, errors.New("GEMINI_API_KEY environment variable not set")
+	}
+
+	llm, err := googleai.New(context.Background(), googleai.WithAPIKey(apiKey))
 	if err != nil {
 		return nil, err
 	}

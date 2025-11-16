@@ -7,9 +7,13 @@ toolchain go1.24.10
 require (
 	cloud.google.com/go/secretmanager v1.14.7
 	github.com/PuerkitoBio/goquery v1.10.3
+	github.com/gofor-little/env v1.0.20
+	github.com/google/go-cmp v0.7.0
+	github.com/googleapis/gax-go/v2 v2.15.0
 	github.com/thomaspoignant/go-feature-flag v1.48.0
 	github.com/tmc/langchaingo v0.1.14
 	google.golang.org/genproto v0.0.0-20250603155806-513f23925822
+	google.golang.org/grpc v1.76.0
 )
 
 require (
@@ -34,11 +38,9 @@ require (
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/google/generative-ai-go v0.15.1 // indirect
-	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.7 // indirect
-	github.com/googleapis/gax-go/v2 v2.15.0 // indirect
 	github.com/nikunjy/rules v1.5.0 // indirect
 	github.com/pkoukk/tiktoken-go v0.1.6 // indirect
 	github.com/spf13/cast v1.3.1 // indirect
@@ -61,7 +63,6 @@ require (
 	google.golang.org/api v0.256.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250825161204-c5933d9347a5 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251103181224-f26f9409b101 // indirect
-	google.golang.org/grpc v1.76.0 // indirect
 	google.golang.org/protobuf v1.36.10 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

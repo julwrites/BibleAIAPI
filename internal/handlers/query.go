@@ -3,6 +3,7 @@ package handlers
 import (
 	"bible-api-service/internal/biblegateway"
 	"bible-api-service/internal/llm"
+	"bible-api-service/internal/llm/provider"
 	"bible-api-service/internal/util"
 	"bytes"
 	"encoding/json"
@@ -22,11 +23,10 @@ type QueryHandler struct {
 
 // NewQueryHandler creates a new QueryHandler with default clients.
 func NewQueryHandler() *QueryHandler {
-	llmClient, _ := llm.GetClient()
 	return &QueryHandler{
 		BibleGatewayClient: biblegateway.NewScraper(),
-		GetLLMClient: func() (llm.LLMClient, error) {
-			return llmClient, nil
+		GetLLMClient: func() (provider.LLMClient, error) {
+			return llm.NewFallbackClient()
 		},
 		FFClient: &GoFeatureFlagClient{},
 	}

@@ -2,87 +2,135 @@ package llm
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"os"
 	"testing"
+	"time"
 
-	"github.com/tmc/langchaingo/llms"
+	"bible-api-service/internal/llm/provider"
 )
 
-type mockLLM struct {
-	generateContentFunc func(context.Context, []llms.MessageContent, ...llms.CallOption) (*llms.ContentResponse, error)
+// mockLLMClient is a mock implementation of the LLMClient interface for testing.
+type mockLLMClient struct {
+	queryFunc func(ctx context.Context, prompt string, schema string) (string, error)
 }
 
-func (m *mockLLM) GenerateContent(ctx context.Context, messages []llms.MessageContent, options ...llms.CallOption) (*llms.ContentResponse, error) {
-	return m.generateContentFunc(ctx, messages, options...)
-}
-
-func (m *mockLLM) Call(ctx context.Context, prompt string, options ...llms.CallOption) (string, error) {
-	return "", nil
-}
-
-func TestGetClient(t *testing.T) {
-	originalNewOpenAIClientFunc := NewOpenAIClientFunc
-	originalNewGeminiClientFunc := NewGeminiClientFunc
-	defer func() {
-		NewOpenAIClientFunc = originalNewOpenAIClientFunc
-		NewGeminiClientFunc = originalNewGeminiClientFunc
-	}()
-
-	NewOpenAIClientFunc = func() (*OpenAIClient, error) {
-		return &OpenAIClient{llm: &mockLLM{}}, nil
+func (m *mockLLMClient) Query(ctx context.Context, prompt string, schema string) (string, error) {
+	if m.queryFunc != nil {
+		return m.queryFunc(ctx, prompt, schema)
 	}
-	NewGeminiClientFunc = func() (*GeminiClient, error) {
-		return &GeminiClient{llm: &mockLLM{}}, nil
-	}
+	return "", errors.New("queryFunc not implemented")
+}
 
+func TestNewFallbackClient(t *testing.T) {
+	t.Run("LLM_PROVIDERS not set", func(t *testing.T) {
+		os.Unsetenv("LLM_PROVIDERS")
+		_, err := NewFallbackClient()
+		if err == nil {
+			t.Error("expected error when LLM_PROVIDERS is not set")
+		}
+	})
+
+	t.Run("Unsupported provider", func(t *testing.T) {
+		os.Setenv("LLM_PROVIDERS", "unsupported")
+		defer os.Unsetenv("LLM_PROVIDERS")
+		_, err := NewFallbackClient()
+		if err == nil {
+			t.Error("expected error for unsupported provider")
+		}
+	})
+}
+
+func TestFallbackClient_Query(t *testing.T) {
 	tests := []struct {
-		name          string
-		provider      string
-		expectedType  string
-		expectedError string
+		name           string
+		clients        []provider.LLMClient
+		prompt         string
+		schema         string
+		expectedResult string
+		expectedError  error
 	}{
 		{
-			name:          "OpenAI provider",
-			provider:      "openai",
-			expectedType:  "*llm.OpenAIClient",
-			expectedError: "",
+			name: "First client succeeds",
+			clients: []provider.LLMClient{
+				&mockLLMClient{queryFunc: func(ctx context.Context, prompt, schema string) (string, error) {
+					return "success from client 1", nil
+				}},
+				&mockLLMClient{queryFunc: func(ctx context.Context, prompt, schema string) (string, error) {
+					return "", errors.New("client 2 should not be called")
+				}},
+			},
+			expectedResult: "success from client 1",
+			expectedError:  nil,
 		},
 		{
-			name:          "Gemini provider",
-			provider:      "gemini",
-			expectedType:  "*llm.GeminiClient",
-			expectedError: "",
+			name: "Fallback to second client",
+			clients: []provider.LLMClient{
+				&mockLLMClient{queryFunc: func(ctx context.Context, prompt, schema string) (string, error) {
+					return "", errors.New("client 1 fails")
+				}},
+				&mockLLMClient{queryFunc: func(ctx context.Context, prompt, schema string) (string, error) {
+					return "success from client 2", nil
+				}},
+			},
+			expectedResult: "success from client 2",
+			expectedError:  nil,
 		},
 		{
-			name:          "Default to OpenAI",
-			provider:      "",
-			expectedType:  "*llm.OpenAIClient",
-			expectedError: "",
+			name: "All clients fail",
+			clients: []provider.LLMClient{
+				&mockLLMClient{queryFunc: func(ctx context.Context, prompt, schema string) (string, error) {
+					return "", errors.New("client 1 fails")
+				}},
+				&mockLLMClient{queryFunc: func(ctx context.Context, prompt, schema string) (string, error) {
+					return "", errors.New("client 2 fails")
+				}},
+			},
+			expectedResult: "",
+			expectedError:  errors.New("all LLM providers failed: client 2 fails"),
 		},
 		{
-			name:          "Unsupported provider",
-			provider:      "unsupported",
-			expectedType:  "",
-			expectedError: "unsupported LLM provider: unsupported",
+			name: "First client times out",
+			clients: []provider.LLMClient{
+				&mockLLMClient{queryFunc: func(ctx context.Context, prompt, schema string) (string, error) {
+					time.Sleep(2 * time.Second) // Longer than the test timeout
+					return "", errors.New("should have timed out")
+				}},
+				&mockLLMClient{queryFunc: func(ctx context.Context, prompt, schema string) (string, error) {
+					return "success from client 2", nil
+				}},
+			},
+			expectedResult: "success from client 2",
+			expectedError:  nil,
+		},
+		{
+			name: "Fallback to deepseek",
+			clients: []provider.LLMClient{
+				&mockLLMClient{queryFunc: func(ctx context.Context, prompt, schema string) (string, error) {
+					return "", errors.New("openai-custom fails")
+				}},
+				&mockLLMClient{queryFunc: func(ctx context.Context, prompt, schema string) (string, error) {
+					return "success from deepseek", nil
+				}},
+			},
+			expectedResult: "success from deepseek",
+			expectedError:  nil,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			os.Setenv("LLM_PROVIDER", tt.provider)
-			defer os.Unsetenv("LLM_PROVIDER")
+			fallbackClient := &FallbackClient{clients: tt.clients}
+			ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+			defer cancel()
 
-			client, err := GetClient()
-
-			if err != nil && err.Error() != tt.expectedError {
-				t.Errorf("unexpected error: got %v, want %v", err, tt.expectedError)
+			result, err := fallbackClient.Query(ctx, tt.prompt, tt.schema)
+			if result != tt.expectedResult {
+				t.Errorf("unexpected result: got %q, want %q", result, tt.expectedResult)
 			}
 
-			if err == nil {
-				if clientType := fmt.Sprintf("%T", client); clientType != tt.expectedType {
-					t.Errorf("unexpected client type: got %s, want %s", clientType, tt.expectedType)
-				}
+			if (err != nil && tt.expectedError == nil) || (err == nil && tt.expectedError != nil) || (err != nil && tt.expectedError != nil && err.Error() != tt.expectedError.Error()) {
+				t.Errorf("unexpected error: got %v, want %v", err, tt.expectedError)
 			}
 		})
 	}
