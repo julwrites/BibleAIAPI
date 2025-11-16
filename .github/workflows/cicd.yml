@@ -33,7 +33,14 @@ jobs:
         run: go build -v ./...
 
       - name: Test
-        run: go test -v ./...
+        run: go test -v -coverprofile=coverage.out ./...
+
+      - name: Check coverage
+        uses: gwatts/go-coverage-action@v2
+        with:
+          coverage-threshold: 70
+          cover-pkg: ./...
+          fetch-depth: 10
 
       - name: Integration Test
         run: |
