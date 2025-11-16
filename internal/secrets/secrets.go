@@ -3,6 +3,7 @@ package secrets
 import (
 	"context"
 	"fmt"
+	"os"
 
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
 	"github.com/googleapis/gax-go/v2"
@@ -27,6 +28,12 @@ func New(client secretManagerClient, projectID string) Client {
 
 // NewClient creates a new Secret Manager client.
 func NewClient(ctx context.Context, projectID string) (Client, error) {
+	// For local development, use a mock client that reads from environment variables.
+	if os.Getenv("ENV") != "production" {
+		return &MockClient{}, nil
+	}
+
+	// For production, use the real Google Secret Manager client.
 	c, err := secretmanager.NewClient(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create secret manager client: %v", err)
