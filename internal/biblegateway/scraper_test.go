@@ -31,7 +31,7 @@ func TestGetVerse(t *testing.T) {
 			verse:    "16",
 			version:  "ESV",
 			htmlFile: "testdata/get_verse_success.html",
-			expected: `<h3>For God So Loved the World</h3><p> <span><sup>16 </sup>“For God so loved the world, that he gave his only Son, that whoever believes in him should not perish but have eternal life. </span> </p>`,
+			expected: `<h3>For God So Loved the World</h3><p><span><sup>16 </sup>“For God so loved the world, that he gave his only Son, that whoever believes in him should not perish but have eternal life.</span></p>`,
 		},
 		{
 			name:     "Matthew 28:19-20",
@@ -40,7 +40,7 @@ func TestGetVerse(t *testing.T) {
 			verse:    "19-20",
 			version:  "ESV",
 			htmlFile: "testdata/get_verse_matthew.html",
-			expected: `<p> <span><sup>19 </sup>Go therefore and make disciples of all nations, baptizing them in the name of the Father and of the Son and of the Holy Spirit, </span> <span><sup>20 </sup>teaching them to observe all that I have commanded you. And behold, I am with you always, to the end of the age.” </span> </p>`,
+			expected: `<p><span><sup>19 </sup>Go therefore and make disciples of all nations, baptizing them in the name of the Father and of the Son and of the Holy Spirit,</span><span><sup>20 </sup>teaching them to observe all that I have commanded you. And behold, I am with you always, to the end of the age.”</span></p>`,
 		},
 		{
 			name:     "Proverbs 3:5-6",
@@ -49,7 +49,7 @@ func TestGetVerse(t *testing.T) {
 			verse:    "5-6",
 			version:  "ESV",
 			htmlFile: "testdata/get_verse_proverbs.html",
-			expected: `<span><sup>5 </sup> Trust in the Lord with all your heart,</span><span>and do not lean on your own understanding.</span><span><sup>6 </sup>In all your ways acknowledge him,</span><span>and he will make straight your paths.</span>`,
+			expected: `<p><span><sup>5 </sup> Trust in the Lord with all your heart,</span><span><span>    </span><span>and do not lean on your own understanding.</span></span><span><sup>6 </sup>In all your ways acknowledge him,</span><span><span>    </span><span>and he will make straight your paths.</span></span></p>`,
 		},
 		{
 			name:     "Psalm 121",
@@ -58,7 +58,7 @@ func TestGetVerse(t *testing.T) {
 			verse:    "",
 			version:  "NIV",
 			htmlFile: "testdata/get_verse_psalm_121.html",
-			expected: `<h3>My Help Comes from the Lord</h3><h4>A Song of Ascents.</h4><span><sup>1 </sup>I lift up my eyes to the hills.</span><span>From where does my help come?</span><span><sup>2 </sup>My help comes from the Lord,</span><span>who made heaven and earth.</span><br/><span><sup>3 </sup>He will not let your foot be moved;</span><span>he who keeps you will not slumber.</span><span><sup>4 </sup>Behold, he who keeps Israel</span><span>will neither slumber nor sleep.</span><br/><span><sup>5 </sup>The Lord is your keeper;</span><span>the Lord is your shade on your right hand.</span><span><sup>6 </sup>The sun shall not strike you by day,</span><span>nor the moon by night.</span><br/><span><sup>7 </sup>The Lord will keep you from all evil;</span><span>he will keep your life.</span><span><sup>8 </sup>The Lord will keep</span><span>your going out and your coming in</span><span>from this time forth and forevermore.</span>`,
+			expected: `<h3>My Help Comes from the Lord</h3><h4>A Song of Ascents.</h4><p><span><sup>1 </sup>I lift up my eyes to the hills.</span><br/><span><span>    </span><span>From where does my help come?</span></span><br/><span><sup>2 </sup>My help comes from the Lord,</span><br/><span><span>    </span><span>who made heaven and earth.</span></span></p><br/><p><span><sup>3 </sup>He will not let your foot be moved;</span><br/><span><span>    </span><span>he who keeps you will not slumber.</span></span><br/><span><sup>4 </sup>Behold, he who keeps Israel</span><br/><span><span>    </span><span>will neither slumber nor sleep.</span></span></p><br/><p><span><sup>5 </sup>The Lord is your keeper;</span><br/><span><span>    </span><span>the Lord is your shade on your right hand.</span></span><br/><span><sup>6 </sup>The sun shall not strike you by day,</span><br/><span><span>    </span><span>nor the moon by night.</span></span></p><br/><p><span><sup>7 </sup>The Lord will keep you from all evil;</span><br/><span><span>    </span><span>he will keep your life.</span></span><br/><span><sup>8 </sup>The Lord will keep</span><br/><span><span>    </span><span>your going out and your coming in</span></span><br/><span><span>    </span><span>from this time forth and forevermore.</span></span></p>`,
 		},
 		{
 			name:       "verse not found",
