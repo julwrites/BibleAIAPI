@@ -103,6 +103,7 @@ func (s *Scraper) GetVerse(book, chapter, verse, version string) (string, error)
 	}
 
 	// Final cleanup and whitespace condensation
+	html = strings.ReplaceAll(html, "\u00a0", " ")
 	html = strings.ReplaceAll(html, "\n", "")
 	html = strings.ReplaceAll(html, "\r", "")
 	html = strings.ReplaceAll(html, "<br/> ", "<br/>")
