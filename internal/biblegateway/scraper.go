@@ -4,10 +4,89 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 )
+
+func removeUnwantedElements(s *goquery.Selection) {
+	s.Find(".footnote, .chapternum, .crossreference, .publisher-info-bottom, .dropdown-version-switcher, .passage-scroller").Remove()
+	s.Find("sup:not(.versenum)").Remove()
+}
+
+func unwrapSmallCaps(s *goquery.Selection) {
+	s.Find(".small-caps").Each(func(i int, sel *goquery.Selection) {
+		sel.ReplaceWithHtml(sel.Text())
+	})
+}
+
+func removeAttributes(s *goquery.Selection) {
+	s.Find("*").RemoveAttr("class").RemoveAttr("id").RemoveAttr("style")
+}
+
+func removeEmptyParagraphs(s *goquery.Selection) {
+	s.Find("p").Each(func(i int, sel *goquery.Selection) {
+		if strings.TrimSpace(sel.Text()) == "" && sel.Find("br").Length() == 0 {
+			sel.Remove()
+		}
+	})
+}
+
+func scrapeProse(s *goquery.Selection) (string, error) {
+	removeUnwantedElements(s)
+	unwrapSmallCaps(s)
+	removeAttributes(s)
+	removeEmptyParagraphs(s)
+
+	html, err := s.Html()
+	if err != nil {
+		return "", err
+	}
+
+	html = strings.ReplaceAll(html, "\u00a0", " ")
+	html = strings.ReplaceAll(html, "\n", "")
+	html = strings.ReplaceAll(html, "\r", "")
+	html = strings.ReplaceAll(html, "<br/> ", "<br/>")
+	re := regexp.MustCompile(`>\s+<`)
+	html = re.ReplaceAllString(html, "><")
+	re = regexp.MustCompile(`\s+`)
+	html = re.ReplaceAllString(html, " ")
+	html = strings.ReplaceAll(html, " >", ">")
+	html = strings.ReplaceAll(html, " </span>", "</span>")
+	html = strings.ReplaceAll(html, " </p>", "</p>")
+	html = strings.ReplaceAll(html, " </h4>", "</h4>")
+	html = strings.ReplaceAll(html, " </h3>", "</h3>")
+
+	return html, nil
+}
+
+func scrapePoetry(s *goquery.Selection) (string, error) {
+	removeUnwantedElements(s)
+	unwrapSmallCaps(s)
+
+	s.Find("div.poetry.top-1 br").Remove()
+	s.Find("p.top-1").ReplaceWithHtml("<br/>")
+	s.Find("div.poetry, p.line, span.indent-1").Each(func(i int, sel *goquery.Selection) {
+		html, _ := sel.Html()
+		sel.ReplaceWithHtml(html)
+	})
+
+	removeAttributes(s)
+	removeEmptyParagraphs(s)
+
+	html, err := s.Html()
+	if err != nil {
+		return "", err
+	}
+
+	html = strings.ReplaceAll(html, "\u00a0", " ")
+	html = strings.ReplaceAll(html, "\n", "")
+	html = strings.ReplaceAll(html, "\r", "")
+	html = strings.ReplaceAll(html, "<br/> ", "<br/>")
+
+	return html, nil
+}
 
 // Scraper is a client for scraping the Bible Gateway website.
 type Scraper struct {
@@ -29,11 +108,15 @@ type SearchResult struct {
 	URL   string `json:"url"`
 }
 
-// GetVerse fetches a single Bible verse by reference.
+// GetVerse fetches a single Bible verse by reference and returns it as sanitized HTML.
 func (s *Scraper) GetVerse(book, chapter, verse, version string) (string, error) {
 	reference := fmt.Sprintf("%s %s:%s", book, chapter, verse)
+	if verse == "" {
+		reference = fmt.Sprintf("%s %s", book, chapter)
+	}
 	encodedReference := url.QueryEscape(reference)
 	url := s.baseURL + fmt.Sprintf("/passage/?search=%s&version=%s&interface=print", encodedReference, version)
+
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return "", err
@@ -54,17 +137,26 @@ func (s *Scraper) GetVerse(book, chapter, verse, version string) (string, error)
 		return "", err
 	}
 
-	passage := doc.Find(".passage-text")
-	passage.Find(".footnotes").Remove()
-	passage.Find(".crossrefs").Remove()
-
-	verseText := passage.Text()
-
-	if verseText == "" || strings.Contains(verseText, "No results found") {
+	passageSelection := doc.Find(".passage-text")
+	if passageSelection.Length() == 0 || strings.Contains(passageSelection.Text(), "No results found") {
 		return "", fmt.Errorf("verse not found")
 	}
 
-	return strings.TrimSpace(verseText), nil
+	isPoetry := passageSelection.Find("div.poetry").Length() > 0
+
+	var html string
+
+	if isPoetry {
+		html, err = scrapePoetry(passageSelection)
+	} else {
+		html, err = scrapeProse(passageSelection)
+	}
+
+	if err != nil {
+		return "", err
+	}
+
+	return strings.TrimSpace(html), nil
 }
 
 // SearchWords searches for a word or phrase and returns a list of relevant verses.
