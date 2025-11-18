@@ -10,6 +10,84 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
+func removeUnwantedElements(s *goquery.Selection) {
+	s.Find(".footnote, .chapternum, .crossreference, .publisher-info-bottom, .dropdown-version-switcher, .passage-scroller").Remove()
+	s.Find("sup:not(.versenum)").Remove()
+}
+
+func unwrapSmallCaps(s *goquery.Selection) {
+	s.Find(".small-caps").Each(func(i int, sel *goquery.Selection) {
+		sel.ReplaceWithHtml(sel.Text())
+	})
+}
+
+func removeAttributes(s *goquery.Selection) {
+	s.Find("*").RemoveAttr("class").RemoveAttr("id").RemoveAttr("style")
+}
+
+func removeEmptyParagraphs(s *goquery.Selection) {
+	s.Find("p").Each(func(i int, sel *goquery.Selection) {
+		if strings.TrimSpace(sel.Text()) == "" && sel.Find("br").Length() == 0 {
+			sel.Remove()
+		}
+	})
+}
+
+func scrapeProse(s *goquery.Selection) (string, error) {
+	removeUnwantedElements(s)
+	unwrapSmallCaps(s)
+	removeAttributes(s)
+	removeEmptyParagraphs(s)
+
+	html, err := s.Html()
+	if err != nil {
+		return "", err
+	}
+
+	html = strings.ReplaceAll(html, "\u00a0", " ")
+	html = strings.ReplaceAll(html, "\n", "")
+	html = strings.ReplaceAll(html, "\r", "")
+	html = strings.ReplaceAll(html, "<br/> ", "<br/>")
+	re := regexp.MustCompile(`>\s+<`)
+	html = re.ReplaceAllString(html, "><")
+	re = regexp.MustCompile(`\s+`)
+	html = re.ReplaceAllString(html, " ")
+	html = strings.ReplaceAll(html, " >", ">")
+	html = strings.ReplaceAll(html, " </span>", "</span>")
+	html = strings.ReplaceAll(html, " </p>", "</p>")
+	html = strings.ReplaceAll(html, " </h4>", "</h4>")
+	html = strings.ReplaceAll(html, " </h3>", "</h3>")
+
+	return html, nil
+}
+
+func scrapePoetry(s *goquery.Selection) (string, error) {
+	removeUnwantedElements(s)
+	unwrapSmallCaps(s)
+
+	s.Find("div.poetry.top-1 br").Remove()
+	s.Find("p.top-1").ReplaceWithHtml("<br/>")
+	s.Find("div.poetry, p.line, span.indent-1").Each(func(i int, sel *goquery.Selection) {
+		html, _ := sel.Html()
+		sel.ReplaceWithHtml(html)
+	})
+
+	removeAttributes(s)
+	removeEmptyParagraphs(s)
+
+	html, err := s.Html()
+	if err != nil {
+		return "", err
+	}
+
+	html = strings.ReplaceAll(html, "\u00a0", " ")
+	html = strings.ReplaceAll(html, "\n", "")
+	html = strings.ReplaceAll(html, "\r", "")
+	html = strings.ReplaceAll(html, "<br/> ", "<br/>")
+
+	return html, nil
+}
+
 // Scraper is a client for scraping the Bible Gateway website.
 type Scraper struct {
 	client  *http.Client
@@ -64,61 +142,19 @@ func (s *Scraper) GetVerse(book, chapter, verse, version string) (string, error)
 		return "", fmt.Errorf("verse not found")
 	}
 
-	// --- Start Sanitization ---
+	isPoetry := passageSelection.Find("div.poetry").Length() > 0
 
-	// 1. Remove completely unwanted elements
-	passageSelection.Find(".footnote, .chapternum, .crossreference, .publisher-info-bottom, .dropdown-version-switcher, .passage-scroller").Remove()
-	passageSelection.Find("sup:not(.versenum)").Remove()
+	var html string
 
-	// 2. Unwrap small-caps to preserve the text
-	passageSelection.Find(".small-caps").Each(func(i int, s *goquery.Selection) {
-		s.ReplaceWithHtml(s.Text())
-	})
+	if isPoetry {
+		html, err = scrapePoetry(passageSelection)
+	} else {
+		html, err = scrapeProse(passageSelection)
+	}
 
-	// 3. Handle poetry formatting based on specific structures in the test data
-	passageSelection.Find("div.poetry.top-1 br").Remove()
-	passageSelection.Find("p.top-1").ReplaceWithHtml("<br/>")
-
-	// 4. Unwrap generic poetry container elements, leaving the spans and text
-	passageSelection.Find("div.poetry, p.line, span.indent-1").Each(func(i int, s *goquery.Selection) {
-		html, _ := s.Html()
-		s.ReplaceWithHtml(html)
-	})
-
-	// 5. Remove all attributes from all remaining tags to get clean HTML
-	passageSelection.Find("*").RemoveAttr("class").RemoveAttr("id").RemoveAttr("style")
-
-	// 6. Remove empty paragraphs that might be left after unwrapping
-	passageSelection.Find("p").Each(func(i int, s *goquery.Selection) {
-		if strings.TrimSpace(s.Text()) == "" && s.Find("br").Length() == 0 {
-			s.Remove()
-		}
-	})
-
-	// --- End Sanitization ---
-
-	html, err := passageSelection.Html()
 	if err != nil {
 		return "", err
 	}
-
-	// Final cleanup and whitespace condensation
-	html = strings.ReplaceAll(html, "\u00a0", " ")
-	html = strings.ReplaceAll(html, "\n", "")
-	html = strings.ReplaceAll(html, "\r", "")
-	html = strings.ReplaceAll(html, "<br/> ", "<br/>")
-
-	re := regexp.MustCompile(`>\s+<`)
-	html = re.ReplaceAllString(html, "><")
-	re = regexp.MustCompile(`\s+`)
-	html = re.ReplaceAllString(html, " ")
-
-	// Specific replaces for stubborn whitespace issues in Psalm 121
-	html = strings.ReplaceAll(html, " >", ">")
-	html = strings.ReplaceAll(html, " </span>", "</span>")
-	html = strings.ReplaceAll(html, " </p>", "</p>")
-	html = strings.ReplaceAll(html, " </h4>", "</h4>")
-	html = strings.ReplaceAll(html, " </h3>", "</h3>")
 
 	return strings.TrimSpace(html), nil
 }
