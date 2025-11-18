@@ -43,6 +43,18 @@ func TestNewClient(t *testing.T) {
 			t.Error("expected error when OPENAI_CUSTOM_BASE_URL is not set")
 		}
 	})
+
+	t.Run("API key and base URL set", func(t *testing.T) {
+		os.Setenv("OPENAI_CUSTOM_API_KEY", "test-key")
+		os.Setenv("OPENAI_CUSTOM_BASE_URL", "http://localhost")
+		client, err := NewClient()
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+		if client == nil {
+			t.Error("expected client to be initialized")
+		}
+	})
 }
 
 func TestOpenAICustomClient_Query(t *testing.T) {

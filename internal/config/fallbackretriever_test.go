@@ -90,3 +90,10 @@ func TestFallbackRetriever_Retrieve(t *testing.T) {
 		})
 	}
 }
+
+func TestFallbackRetriever_Name(t *testing.T) {
+	retriever := NewFallbackRetriever(nil, nil)
+	if retriever.Name() != "fallbackRetriever" {
+		t.Errorf("unexpected name: got %q, want %q", retriever.Name(), "fallbackRetriever")
+	}
+}

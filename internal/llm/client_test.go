@@ -39,6 +39,40 @@ func TestNewFallbackClient(t *testing.T) {
 			t.Error("expected error for unsupported provider")
 		}
 	})
+
+	t.Run("Valid provider", func(t *testing.T) {
+		os.Setenv("LLM_PROVIDERS", "openai")
+		os.Setenv("OPENAI_API_KEY", "test-key")
+		defer os.Unsetenv("LLM_PROVIDERS")
+		defer os.Unsetenv("OPENAI_API_KEY")
+		client, err := NewFallbackClient()
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+		if client == nil {
+			t.Error("expected client to be initialized")
+		}
+		if len(client.clients) != 1 {
+			t.Errorf("expected 1 client, got %d", len(client.clients))
+		}
+	})
+
+	t.Run("Mixed providers", func(t *testing.T) {
+		os.Setenv("LLM_PROVIDERS", "openai,unsupported")
+		os.Setenv("OPENAI_API_KEY", "test-key")
+		defer os.Unsetenv("LLM_PROVIDERS")
+		defer os.Unsetenv("OPENAI_API_KEY")
+		client, err := NewFallbackClient()
+		if err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+		if client == nil {
+			t.Error("expected client to be initialized")
+		}
+		if len(client.clients) != 1 {
+			t.Errorf("expected 1 client, got %d", len(client.clients))
+		}
+	})
 }
 
 func TestFallbackClient_Query(t *testing.T) {
