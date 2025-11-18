@@ -222,6 +222,154 @@ func TestInvalidRequestPayload(t *testing.T) {
 	}
 }
 
+func TestNewQueryHandler(t *testing.T) {
+	handler := NewQueryHandler()
+	if handler.BibleGatewayClient == nil {
+		t.Error("expected BibleGatewayClient to be initialized")
+	}
+	if handler.GetLLMClient == nil {
+		t.Error("expected GetLLMClient to be initialized")
+	}
+	if handler.FFClient == nil {
+		t.Error("expected FFClient to be initialized")
+	}
+}
+
+func TestHandleVerseQuery_Error(t *testing.T) {
+	handler := &QueryHandler{
+		BibleGatewayClient: &mockBibleGatewayClient{
+			getVerseFunc: func(book, chapter, verse, version string) (string, error) {
+				return "", &http.MaxBytesError{}
+			},
+		},
+	}
+
+	reqBody := `{
+		"query": {
+			"verses": ["John 3:16"]
+		}
+	}`
+	req := httptest.NewRequest("POST", "/query", bytes.NewBufferString(reqBody))
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusInternalServerError {
+		t.Errorf("handler returned wrong status code: got %v want %v",
+			status, http.StatusInternalServerError)
+	}
+}
+
+func TestHandleWordSearchQuery_Error(t *testing.T) {
+	handler := &QueryHandler{
+		BibleGatewayClient: &mockBibleGatewayClient{
+			searchWordsFunc: func(query, version string) ([]biblegateway.SearchResult, error) {
+				return nil, &http.MaxBytesError{}
+			},
+		},
+	}
+
+	reqBody := `{
+		"query": {
+			"words": ["grace"]
+		}
+	}`
+	req := httptest.NewRequest("POST", "/query", bytes.NewBufferString(reqBody))
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusInternalServerError {
+		t.Errorf("handler returned wrong status code: got %v want %v",
+			status, http.StatusInternalServerError)
+	}
+}
+
+func TestHandleOpenQuery_Error(t *testing.T) {
+	handler := &QueryHandler{
+		GetLLMClient: func() (provider.LLMClient, error) {
+			return nil, &http.MaxBytesError{}
+		},
+	}
+
+	reqBody := `{
+		"query": {
+			"oquery": "How many people did Jesus feed?"
+		}
+	}`
+	req := httptest.NewRequest("POST", "/query", bytes.NewBufferString(reqBody))
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusInternalServerError {
+		t.Errorf("handler returned wrong status code: got %v want %v",
+			status, http.StatusInternalServerError)
+	}
+}
+
+func TestHandleInstruction_FFClient_Error(t *testing.T) {
+	handler := &QueryHandler{
+		FFClient: &mockFFClient{
+			jsonVariationFunc: func(flagKey string, context ffcontext.EvaluationContext, defaultValue map[string]interface{}) (map[string]interface{}, error) {
+				return nil, &http.MaxBytesError{}
+			},
+		},
+	}
+
+	reqBody := `{
+		"context": {
+			"instruction": "test_instruction"
+		},
+		"query": {
+			"oquery": "test query"
+		}
+	}`
+	req := httptest.NewRequest("POST", "/query", bytes.NewBufferString(reqBody))
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusInternalServerError {
+		t.Errorf("handler returned wrong status code: got %v want %v",
+			status, http.StatusInternalServerError)
+	}
+}
+
+func TestHandleInstruction_LLM_Error(t *testing.T) {
+	handler := &QueryHandler{
+		FFClient: &mockFFClient{
+			jsonVariationFunc: func(flagKey string, context ffcontext.EvaluationContext, defaultValue map[string]interface{}) (map[string]interface{}, error) {
+				return map[string]interface{}{
+					"prompt": "test prompt",
+					"schema": "test schema",
+				}, nil
+			},
+		},
+		GetLLMClient: func() (provider.LLMClient, error) {
+			return nil, &http.MaxBytesError{}
+		},
+	}
+
+	reqBody := `{
+		"context": {
+			"instruction": "test_instruction"
+		},
+		"query": {
+			"oquery": "test query"
+		}
+	}`
+	req := httptest.NewRequest("POST", "/query", bytes.NewBufferString(reqBody))
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusInternalServerError {
+		t.Errorf("handler returned wrong status code: got %v want %v",
+			status, http.StatusInternalServerError)
+	}
+}
+
 func TestNoQueryProvided(t *testing.T) {
 	handler := &QueryHandler{}
 
