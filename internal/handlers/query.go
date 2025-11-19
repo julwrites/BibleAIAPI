@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bible-api-service/internal/biblegateway"
+	"bible-api-service/internal/chat"
 	"bible-api-service/internal/llm"
 	"bible-api-service/internal/llm/provider"
 	"bible-api-service/internal/util"
@@ -19,16 +20,20 @@ type QueryHandler struct {
 	BibleGatewayClient BibleGatewayClient
 	GetLLMClient       GetLLMClient
 	FFClient           FFClient
+	ChatService        ChatService
 }
 
 // NewQueryHandler creates a new QueryHandler with default clients.
 func NewQueryHandler() *QueryHandler {
+	bibleGatewayClient := biblegateway.NewScraper()
+	getLLMClient := func() (provider.LLMClient, error) {
+		return llm.NewFallbackClient()
+	}
 	return &QueryHandler{
-		BibleGatewayClient: biblegateway.NewScraper(),
-		GetLLMClient: func() (provider.LLMClient, error) {
-			return llm.NewFallbackClient()
-		},
-		FFClient: &GoFeatureFlagClient{},
+		BibleGatewayClient: bibleGatewayClient,
+		GetLLMClient:       getLLMClient,
+		FFClient:           &GoFeatureFlagClient{},
+		ChatService:        chat.NewChatService(bibleGatewayClient, getLLMClient),
 	}
 }
 
@@ -46,9 +51,29 @@ func (h *QueryHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if request.Context.Instruction != "" {
 		h.handleInstruction(w, r, request)
+	} else if request.Query.ChatPrompt != "" {
+		h.handleChatQuery(w, r, request)
 	} else {
 		h.handleDirectQuery(w, r, request)
 	}
+}
+
+func (h *QueryHandler) handleChatQuery(w http.ResponseWriter, r *http.Request, request QueryRequest) {
+	chatReq := chat.Request{
+		VerseRefs: request.Query.Verses,
+		Version:   request.Context.User.Version,
+		Prompt:    request.Query.ChatPrompt,
+		Schema:    request.Query.ChatSchema,
+	}
+
+	result, err := h.ChatService.Process(r.Context(), chatReq)
+	if err != nil {
+		util.JSONError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(result)
 }
 
 func (h *QueryHandler) handleDirectQuery(w http.ResponseWriter, r *http.Request, request QueryRequest) {
@@ -66,11 +91,22 @@ func (h *QueryHandler) handleDirectQuery(w http.ResponseWriter, r *http.Request,
 func (h *QueryHandler) handleVerseQuery(w http.ResponseWriter, r *http.Request, request QueryRequest) {
 	var verseText []string
 	for _, verseRef := range request.Query.Verses {
-		parts := strings.Split(verseRef, " ")
-		book := parts[0]
-		chapterAndVerse := strings.Split(parts[1], ":")
+		lastSpaceIndex := strings.LastIndex(verseRef, " ")
+		if lastSpaceIndex == -1 {
+			util.JSONError(w, http.StatusBadRequest, "Invalid verse reference format")
+			return
+		}
+
+		book := verseRef[:lastSpaceIndex]
+		chapterAndVerseStr := verseRef[lastSpaceIndex+1:]
+
+		chapterAndVerse := strings.Split(chapterAndVerseStr, ":")
 		chapter := chapterAndVerse[0]
-		verseNum := chapterAndVerse[1]
+
+		var verseNum string
+		if len(chapterAndVerse) > 1 {
+			verseNum = chapterAndVerse[1]
+		}
 
 		verse, err := h.BibleGatewayClient.GetVerse(book, chapter, verseNum, request.Context.User.Version)
 		if err != nil {

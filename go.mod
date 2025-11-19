@@ -10,6 +10,7 @@ require (
 	github.com/gofor-little/env v1.0.20
 	github.com/google/go-cmp v0.7.0
 	github.com/googleapis/gax-go/v2 v2.15.0
+	github.com/stretchr/testify v1.11.1
 	github.com/thomaspoignant/go-feature-flag v1.48.0
 	github.com/tmc/langchaingo v0.1.14
 	google.golang.org/genproto v0.0.0-20250603155806-513f23925822
@@ -33,6 +34,7 @@ require (
 	github.com/blang/semver v3.5.1+incompatible // indirect
 	github.com/buger/jsonparser v1.1.1 // indirect
 	github.com/dariubs/percent v0.0.0-20190521174708-8153fcbd48ae // indirect
+	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dlclark/regexp2 v1.10.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
@@ -43,7 +45,9 @@ require (
 	github.com/googleapis/enterprise-certificate-proxy v0.3.7 // indirect
 	github.com/nikunjy/rules v1.5.0 // indirect
 	github.com/pkoukk/tiktoken-go v0.1.6 // indirect
+	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/spf13/cast v1.3.1 // indirect
+	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/thomaspoignant/go-feature-flag/modules/core v0.2.0 // indirect
 	github.com/thomaspoignant/go-feature-flag/modules/evaluation v0.1.3 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
