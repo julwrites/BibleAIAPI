@@ -222,6 +222,46 @@ func TestInvalidRequestPayload(t *testing.T) {
 	}
 }
 
+func TestHandleVerseQuery_BookWithSpaces(t *testing.T) {
+	handler := &QueryHandler{
+		BibleGatewayClient: &mockBibleGatewayClient{
+			getVerseFunc: func(book, chapter, verse, version string) (string, error) {
+				// Check if the book name with spaces was parsed correctly
+				if book != "1 John" || chapter != "1" || verse != "9" {
+					return "", nil // Or error
+				}
+				return "If we confess our sins...", nil
+			},
+		},
+	}
+
+	reqBody := `{
+		"query": {
+			"verses": ["1 John 1:9"]
+		}
+	}`
+	req := httptest.NewRequest("POST", "/query", bytes.NewBufferString(reqBody))
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got %v want %v",
+			status, http.StatusOK)
+	}
+
+	var response map[string]string
+	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	expected := "If we confess our sins..."
+	if response["verse"] != expected {
+		t.Errorf("handler returned unexpected body: got %v want %v",
+			response["verse"], expected)
+	}
+}
+
 func TestNewQueryHandler(t *testing.T) {
 	handler := NewQueryHandler()
 	if handler.BibleGatewayClient == nil {

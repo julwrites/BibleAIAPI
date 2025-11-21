@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"bible-api-service/internal/llm/provider"
+	"bible-api-service/internal/util"
+
 	"github.com/PuerkitoBio/goquery"
 )
 
@@ -48,20 +50,10 @@ func (s *ChatService) Process(ctx context.Context, req Request) (Response, error
 	// 1. Retrieve verses from biblegateway
 	var verseTexts []string
 	for _, verseRef := range req.VerseRefs {
-		lastSpaceIndex := strings.LastIndex(verseRef, " ")
-		if lastSpaceIndex == -1 {
-			return nil, fmt.Errorf("invalid verse reference format: %s", verseRef)
+		book, chapter, verseNum, err := util.ParseVerseReference(verseRef)
+		if err != nil {
+			return nil, fmt.Errorf("invalid verse reference format (%s): %w", verseRef, err)
 		}
-
-		book := verseRef[:lastSpaceIndex]
-		chapterAndVerseStr := verseRef[lastSpaceIndex+1:]
-
-		chapterAndVerse := strings.Split(chapterAndVerseStr, ":")
-		if len(chapterAndVerse) < 2 {
-			return nil, fmt.Errorf("invalid verse reference format: %s", verseRef)
-		}
-		chapter := chapterAndVerse[0]
-		verseNum := chapterAndVerse[1]
 
 		verseHTML, err := s.BibleGatewayClient.GetVerse(book, chapter, verseNum, req.Version)
 		if err != nil {
