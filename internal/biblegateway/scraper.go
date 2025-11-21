@@ -43,6 +43,7 @@ func sanitizeNodes(n *html.Node) {
 			if parent != nil {
 				for child := n.FirstChild; child != nil; {
 					next := child.NextSibling
+					n.RemoveChild(child)
 					parent.InsertBefore(child, n)
 					child = next
 				}
