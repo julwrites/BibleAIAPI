@@ -46,7 +46,7 @@ gcloud run deploy bible-api-service \
     --platform managed \
     --region <gcp-region> \
     --allow-unauthenticated \
-    --set-env-vars="API_KEY=<your-api-key>,OPENAI_API_KEY=<your-openai-key>,GEMINI_API_KEY=<your-gemini-key>"
+    --set-env-vars="API_KEY=<your-api-key>,LLM_PROVIDERS=openai,gemini,OPENAI_API_KEY=<your-openai-key>,GEMINI_API_KEY=<your-gemini-key>,GCP_PROJECT_ID=<your-project-id>"
 ```
 
 **Note**: The `--allow-unauthenticated` flag makes the service publicly accessible, but it is still protected by the API key authentication implemented in the application.
@@ -56,5 +56,9 @@ gcloud run deploy bible-api-service \
 The following environment variables need to be configured for the deployment:
 
 -   `API_KEY`: The secret API key for client authentication.
--   `OPENAI_API_KEY`: The API key for the OpenAI service.
--   `GEMINI_API_KEY`: The API key for the Google Gemini service.
+-   `GCP_PROJECT_ID`: The Google Cloud Project ID (required for secrets management).
+-   `LLM_PROVIDERS`: A comma-separated list of LLM providers to use (e.g., "openai,gemini,deepseek").
+-   `OPENAI_API_KEY`: The API key for the OpenAI service (required if using "openai").
+-   `GEMINI_API_KEY`: The API key for the Google Gemini service (required if using "gemini").
+-   `DEEPSEEK_API_KEY`: The API key for the DeepSeek service (required if using "deepseek").
+-   `OPENAI_CUSTOM_BASE_URL`: The base URL for a custom OpenAI-compatible provider (required if using "openai-custom").

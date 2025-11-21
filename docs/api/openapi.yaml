@@ -11,9 +11,19 @@ paths:
     post:
       summary: Submit a query
       description: >-
-        Submits a query to the Bible API service. The query can be a Bible verse
-        reference, a word/phrase, or an open-ended question. The behavior of the
-        endpoint changes based on whether an instruction is provided.
+        Submits a query to the Bible API service. The query can be a Bible verse reference, a word/phrase, an open-ended question, or a chat prompt.
+
+        The endpoint's behavior is determined by the presence of specific fields in the following order of precedence:
+
+        1. **Instruction**: If `context.instruction` is present, the service executes a predefined instruction (managed via feature flags) using the provided context.
+
+        2. **Chat Prompt**: If `query.chat_prompt` is present, the service processes the prompt using the LLM, optionally constrained by `query.chat_schema`.
+
+        3. **Verse Query**: If `query.verses` is present, the service retrieves the specified verses.
+
+        4. **Word Search**: If `query.words` is present, the service searches for the words in the Bible.
+
+        5. **Open Query**: If `query.oquery` is present, the service answers the open-ended question using the LLM.
       security:
         - ApiKeyAuth: []
       requestBody:
@@ -71,20 +81,31 @@ components:
               items:
                 type: string
                 example: "John 1:12"
+              description: "List of Bible verse references to retrieve."
             words:
               type: array
               items:
                 type: string
                 example: "Grace"
+              description: "List of words to search for in the Bible."
             oquery:
               type: string
               example: "How many people did Jesus feed?"
+              description: "An open-ended question about the Bible."
+            chat_prompt:
+              type: string
+              example: "Explain the significance of the resurrection."
+              description: "A prompt for the LLM chat interface."
+            chat_schema:
+              type: string
+              description: "A JSON schema to structure the LLM response."
         context:
           type: object
           properties:
             instruction:
               type: string
               example: "summarize"
+              description: "A key for a predefined instruction to execute."
             pquery:
               type: array
               items:
