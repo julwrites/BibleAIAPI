@@ -91,21 +91,10 @@ func (h *QueryHandler) handleDirectQuery(w http.ResponseWriter, r *http.Request,
 func (h *QueryHandler) handleVerseQuery(w http.ResponseWriter, r *http.Request, request QueryRequest) {
 	var verseText []string
 	for _, verseRef := range request.Query.Verses {
-		lastSpaceIndex := strings.LastIndex(verseRef, " ")
-		if lastSpaceIndex == -1 {
-			util.JSONError(w, http.StatusBadRequest, "Invalid verse reference format")
+		book, chapter, verseNum, err := util.ParseVerseReference(verseRef)
+		if err != nil {
+			util.JSONError(w, http.StatusBadRequest, err.Error())
 			return
-		}
-
-		book := verseRef[:lastSpaceIndex]
-		chapterAndVerseStr := verseRef[lastSpaceIndex+1:]
-
-		chapterAndVerse := strings.Split(chapterAndVerseStr, ":")
-		chapter := chapterAndVerse[0]
-
-		var verseNum string
-		if len(chapterAndVerse) > 1 {
-			verseNum = chapterAndVerse[1]
 		}
 
 		verse, err := h.BibleGatewayClient.GetVerse(book, chapter, verseNum, request.Context.User.Version)

@@ -8,7 +8,61 @@ import (
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
+	"golang.org/x/net/html"
 )
+
+var allowedTags = map[string]bool{
+	"h1":   true,
+	"h2":   true,
+	"h3":   true,
+	"h4":   true,
+	"p":    true,
+	"span": true,
+	"i":    true,
+	"br":   true,
+	"sup":  true, // Preserved for verse numbers
+}
+
+func sanitizeNodes(n *html.Node) {
+	// Iterate backwards to handle removals safely
+	for c := n.LastChild; c != nil; {
+		prev := c.PrevSibling
+		sanitizeNodes(c)
+		c = prev
+	}
+
+	if n.Type == html.ElementNode {
+		if n.Data == "script" || n.Data == "style" {
+			n.Parent.RemoveChild(n)
+			return
+		}
+
+		if !allowedTags[n.Data] {
+			// Unwrap: Move children to before n, then remove n
+			parent := n.Parent
+			if parent != nil {
+				for child := n.FirstChild; child != nil; {
+					next := child.NextSibling
+					parent.InsertBefore(child, n)
+					child = next
+				}
+				parent.RemoveChild(n)
+			}
+		}
+	}
+}
+
+func strictSanitize(s *goquery.Selection) {
+	for _, n := range s.Nodes {
+		// Sanitize children of the selected nodes (to preserve the container if needed, though unwrap handles it)
+		// We iterate backwards on children
+		for c := n.LastChild; c != nil; {
+			prev := c.PrevSibling
+			sanitizeNodes(c)
+			c = prev
+		}
+	}
+}
 
 func removeUnwantedElements(s *goquery.Selection) {
 	s.Find(".footnote, .chapternum, .crossreference, .publisher-info-bottom, .dropdown-version-switcher, .passage-scroller").Remove()
@@ -36,6 +90,7 @@ func removeEmptyParagraphs(s *goquery.Selection) {
 func scrapeProse(s *goquery.Selection) (string, error) {
 	removeUnwantedElements(s)
 	unwrapSmallCaps(s)
+	strictSanitize(s)
 	removeAttributes(s)
 	removeEmptyParagraphs(s)
 
@@ -72,6 +127,7 @@ func scrapePoetry(s *goquery.Selection) (string, error) {
 		sel.ReplaceWithHtml(html)
 	})
 
+	strictSanitize(s)
 	removeAttributes(s)
 	removeEmptyParagraphs(s)
 
