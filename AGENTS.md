@@ -1,42 +1,56 @@
 # Agent Instructions
 
-This document provides instructions for AI agents working on this codebase.
+This document provides instructions for AI agents and developers working on the Bible API Service codebase.
 
 ## Overview
 
-This is a Go-based API service designed to be a stateless microservice. It interacts with the Bible Gateway website and Large Language Models (LLMs) to provide various functionalities related to Bible verses.
+The Bible API Service is a Go-based stateless microservice designed for serverless deployment (Google Cloud Run). It acts as a bridge between clients, the Bible Gateway website (via scraping), and Large Language Models (LLMs).
 
-## Key Technologies
+## Key Technologies & Architecture
 
-- **Go**: The primary programming language. The service uses the standard `net/http` library for the web server.
-- **Docker**: Used for containerization. The `Dockerfile` is a multi-stage build to create a small, optimized image.
-- **go-feature-flag**: Used for managing instructions and prompts. The configuration is in `configs/flags.yaml`.
-- **langchaingo**: Used for interacting with LLMs. The LLM client is designed to be modular to support multiple providers.
+-   **Go**: Primary language (Go 1.24+).
+-   **Docker**: Multi-stage builds for optimized container images.
+-   **Scraping**: Uses `goquery` to scrape `classic.biblegateway.com`. Logic distinguishes between **Prose** and **Poetry** to preserve formatting.
+-   **LLM Clients**: Modular architecture in `internal/llm`. Supports multiple providers (OpenAI, Gemini, DeepSeek, Custom).
+    -   **Fallback**: The `FallbackClient` (`internal/llm/client.go`) attempts providers in a priority list defined by `LLM_PROVIDERS` env var.
+-   **Feature Flags**: Managed via `go-feature-flag`.
+    -   **Source**: Primarily loaded from the GitHub repository (`julwrites/BibleAIAPI`).
+    -   **Fallback**: Falls back to a local file (`configs/flags.yaml`) if GitHub retrieval fails.
+-   **Secrets**: Managed via `internal/secrets`.
+    -   **Source**: Attempts to fetch from Google Secret Manager first.
+    -   **Fallback**: Falls back to environment variables (useful for local development).
 
 ## Project Structure
 
-- `cmd/server`: The main entry point for the application.
-- `internal`: Contains the core application logic. This is where you'll find the handlers, services, and clients for interacting with external services.
-- `pkg`: For shared code that can be used across the application.
-- `configs`: All configuration files, including the feature flags for `go-feature-flag`.
-- `docs`: Documentation, including the OpenAPI specification in `docs/api`.
+-   `cmd/server`: Application entry point.
+-   `internal/biblegateway`: Scraper logic. **Critical**: Must handle `div.poetry` for poetry preservation.
+-   `internal/handlers`: HTTP handlers. `QueryHandler` routes requests based on payload (`instruction` > `chat_prompt` > `verses`).
+-   `internal/llm`: Modular LLM provider implementations.
+-   `internal/middleware`: Auth middleware (`X-API-KEY`) and logging.
+-   `internal/secrets`: Secret retrieval logic.
+-   `configs`: Local fallback configuration files.
+-   `docs`: Detailed documentation (API, Architecture, Deployment).
+
+## Scraper Implementation Details
+
+The scraper (`internal/biblegateway/scraper.go`) is sensitive to HTML structure.
+-   **Allowed Tags**: `h1`, `h2`, `h3`, `h4`, `p`, `span`, `i`, `br`, `sup` (for verse numbers).
+-   **Sanitization**: Aggressive cleanup for prose; structure preservation for poetry.
+-   **Non-breaking Spaces**: Must be converted to regular spaces (`\u00a0` -> ` `).
 
 ## Development Workflow
 
-1.  **Understand the API**: Before making changes, review the OpenAPI specification in `docs/api/openapi.yaml` to understand the API contract.
-2.  **Modify the code**: Make your changes to the Go source files. Remember to follow Go best practices.
-3.  **Update dependencies**: If you add or change dependencies, use `go get` and `go mod tidy` to update the `go.mod` and `go.sum` files.
-4.  **Test your changes**: Ensure that your changes are covered by tests.
-5.  **Update documentation**: If you change the API, update the OpenAPI specification and any other relevant documentation.
+1.  **Understand the Goal**: Read `README.md` and `docs/` first.
+2.  **Verify State**: Always check `go.mod` and existing code before assuming dependencies or logic.
+3.  **Testing**:
+    -   **Unit Tests**: Write table-driven tests. Use `go test ./...`.
+    -   **Coverage**: Strict ratcheting coverage is enforced. Coverage must typically exceed 80%. Use `go tool cover` to check.
+    -   **Scraper Tests**: Use realistic HTML snippets in tests, not mock strings.
+    -   **Integration Tests**: Run `main` in a goroutine and make real HTTP requests (mocking external calls if needed).
+4.  **Documentation**: Update `docs/` and `README.md` if logic changes.
+5.  **Pre-Commit**: Ensure all tests pass and coverage is sufficient before submitting.
 
-## Running Tests
+## Deployment
 
-To run the tests, use the following command:
-
-```bash
-go test ./...
-```
-
-## Code Style
-
-This project follows standard Go formatting. Use `gofmt` to format your code before committing.
+-   Refer to `docs/deployment.md` for detailed instructions.
+-   **Secrets**: `API_KEY`, `GCP_PROJECT_ID`, and relevant LLM keys (`OPENAI_API_KEY`, etc.) must be set.
