@@ -107,19 +107,9 @@ jobs:
       - name: Push Docker Image to GAR
         run: docker push ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.GAR_REPOSITORY }}/${{ env.CLOUD_RUN_SERVICE }}:${{ env.IMAGE_TAG }}
 
-      - name: Get GCP Project Number
-        id: project
-        run: echo "project_number=$(gcloud projects describe ${{ env.GCP_PROJECT_ID }} --format='value(projectNumber)')" >> $GITHUB_OUTPUT
-
       - name: Deploy to Google Cloud Run
         uses: google-github-actions/deploy-cloudrun@v2
         with:
           service: ${{ env.CLOUD_RUN_SERVICE }}
           image: ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.GAR_REPOSITORY }}/${{ env.CLOUD_RUN_SERVICE }}:${{ env.IMAGE_TAG }}
           region: us-central1
-
-      - name: Grant Secret Manager access to the Cloud Run service account
-        run: |
-          gcloud projects add-iam-policy-binding ${{ env.GCP_PROJECT_ID }} \
-            --member="serviceAccount:${{ steps.project.outputs.project_number }}-compute@developer.gserviceaccount.com" \
-            --role="roles/secretmanager.secretAccessor"
