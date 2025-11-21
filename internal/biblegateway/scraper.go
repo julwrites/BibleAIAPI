@@ -162,6 +162,7 @@ func NewScraper() *Scraper {
 // SearchResult represents a search result.
 type SearchResult struct {
 	Verse string `json:"verse"`
+	Text  string `json:"text"`
 	URL   string `json:"url"`
 }
 
@@ -199,14 +200,19 @@ func (s *Scraper) GetVerse(book, chapter, verse, version string) (string, error)
 		return "", fmt.Errorf("verse not found")
 	}
 
-	isPoetry := passageSelection.Find("div.poetry").Length() > 0
+	return sanitizeSelection(passageSelection)
+}
+
+func sanitizeSelection(s *goquery.Selection) (string, error) {
+	isPoetry := s.Find("div.poetry").Length() > 0
 
 	var html string
+	var err error
 
 	if isPoetry {
-		html, err = scrapePoetry(passageSelection)
+		html, err = scrapePoetry(s)
 	} else {
-		html, err = scrapeProse(passageSelection)
+		html, err = scrapeProse(s)
 	}
 
 	if err != nil {
@@ -242,11 +248,16 @@ func (s *Scraper) SearchWords(query, version string) ([]SearchResult, error) {
 
 	var results []SearchResult
 	doc.Find(".search-result-list .search-result").Each(func(i int, sel *goquery.Selection) {
-		link := sel.Find(".bible-item-extras a")
-		verse := link.Text()
-		url, _ := link.Attr("href")
+		titleLink := sel.Find(".bible-item-title a")
+		verse := titleLink.Text()
+		url, _ := titleLink.Attr("href")
+
+		textSel := sel.Find(".bible-item-text")
+		text, _ := sanitizeSelection(textSel)
+
 		results = append(results, SearchResult{
 			Verse: verse,
+			Text:  text,
 			URL:   s.baseURL + url,
 		})
 	})
