@@ -28,4 +28,4 @@ This task involves writing integration tests for the core API endpoints. These t
 ---
 
 *Created: 2025-11-14*
-*Status: pending*
+*Status: completed - Integration tests implemented in `internal/handlers/integration_test.go`.*

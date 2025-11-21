@@ -6,10 +6,6 @@ This document provides an overview of the system architecture for the Bible API 
 
 The Bible API Service is a stateless microservice designed for serverless environments like Google Cloud Run. It is built in Go and containerized with Docker.
 
-The service has two primary modes of operation:
-1.  **Direct Query**: When no instruction is provided, the service directly queries Bible Gateway for verses or search results.
-2.  **Instruction-Based Query**: When an instruction is provided, the service uses a Large Language Model (LLM) to process the query and context, based on a predefined prompt and response schema.
-
 ## Components
 
 ### 1. API Server (`cmd/server`)
@@ -24,33 +20,36 @@ The service has two primary modes of operation:
 
 ### 2. Core Logic (`internal`)
 
--   **Handlers**: Contain the main business logic for processing API requests.
--   **Bible Gateway Client**: A client for scraping verse data and search results from `classic.biblegateway.com`.
--   **LLM Client**: A modular client for interacting with LLMs (e.g., OpenAI, Gemini) via `langchaingo`.
--   **Feature Flag Service**: Integrates with `go-feature-flag` to retrieve prompts and schemas from `configs/flags.yaml`.
+-   **Handlers**: Contain the main business logic. The `QueryHandler` determines the type of request.
+-   **Bible Gateway Client**: Scrapes verse data from `classic.biblegateway.com`. It intelligently parses HTML, distinguishing between prose and poetry to preserve formatting.
+-   **LLM Client**: A modular client for interacting with LLMs. It supports multiple providers (OpenAI, Gemini, DeepSeek, etc.) via a common interface and includes a fallback mechanism.
+-   **Feature Flag Service**: Integrates with `go-feature-flag`. It attempts to retrieve configuration from the GitHub repository (`julwrites/BibleAIAPI`) and falls back to a local file (`configs/flags.yaml`) if needed.
+-   **Secret Service**: Abstraction for secret retrieval. It prioritizes Google Secret Manager but falls back to environment variables for local development.
 
 ### 3. Configuration (`configs`)
 
--   `flags.yaml`: Stores the configuration for the feature flags, including prompts and schemas for different instructions.
-
-### 4. Containerization (`Dockerfile`)
-
--   A multi-stage `Dockerfile` is used to build a small, optimized container image for the service.
+-   `flags.yaml`: Local fallback configuration for feature flags.
 
 ## Data Flow
 
-### Without Instruction
+### Request Routing Logic
+The `QueryHandler` inspects the request payload and routes it based on the following precedence:
+1.  **Instruction**: If `context.instruction` is present -> LLM Instruction Flow.
+2.  **Chat Prompt**: If `query.chat_prompt` is present -> LLM Chat Flow.
+3.  **Verses**: If `query.verses` is present -> Verse Retrieval (Scraper).
+4.  **Words**: If `query.words` is present -> Word Search (Scraper).
+5.  **Open Query**: If `query.oquery` is present -> Open Query (LLM).
 
-1.  Client sends a request with a Bible verse, word, or open-ended query.
-2.  The API server authenticates the request.
-3.  The handler calls the Bible Gateway client to fetch the requested information.
-4.  The response is formatted and returned to the client.
+### Verse Retrieval Flow
+1.  Client sends a request with verse references.
+2.  Handler calls `BibleGatewayClient`.
+3.  Client scrapes `classic.biblegateway.com`, parses HTML (handling poetry/prose), and sanitizes output.
+4.  Formatted HTML is returned.
 
-### With Instruction
-
-1.  Client sends a request with an instruction, query, and context.
-2.  The API server authenticates the request.
-3.  The handler retrieves the corresponding prompt and schema from the feature flag service.
-4.  The handler calls the LLM client with the prompt, schema, and context.
-5.  The LLM returns a structured response.
-6.  The response is returned to the client.
+### LLM Instruction/Chat Flow
+1.  Client sends a request with instruction/prompt and context.
+2.  Handler retrieves the relevant prompt template/schema from the Feature Flag Service (GitHub/Local).
+3.  Handler calls the `LLMClient`.
+4.  `LLMClient` attempts to call the configured providers (defined in `LLM_PROVIDERS`) in order.
+5.  If a provider fails, the next one is tried (Fallback).
+6.  Structured response is returned to the client.
