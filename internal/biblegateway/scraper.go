@@ -2,6 +2,7 @@ package biblegateway
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -226,6 +227,8 @@ func sanitizeSelection(s *goquery.Selection) (string, error) {
 func (s *Scraper) SearchWords(query, version string) ([]SearchResult, error) {
 	encodedQuery := url.QueryEscape(query)
 	url := s.baseURL + fmt.Sprintf("/quicksearch/?quicksearch=%s&version=%s&interface=print", encodedQuery, version)
+	log.Printf("Scraping URL: %s", url)
+
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -238,6 +241,7 @@ func (s *Scraper) SearchWords(query, version string) ([]SearchResult, error) {
 	defer res.Body.Close()
 
 	if res.StatusCode != 200 {
+		log.Printf("Failed to search, status code: %d", res.StatusCode)
 		return nil, fmt.Errorf("failed to search, status code: %d", res.StatusCode)
 	}
 
@@ -246,8 +250,11 @@ func (s *Scraper) SearchWords(query, version string) ([]SearchResult, error) {
 		return nil, err
 	}
 
-	var results []SearchResult
-	doc.Find(".search-result-list .search-result").Each(func(i int, sel *goquery.Selection) {
+	results := []SearchResult{}
+	selection := doc.Find(".search-result-list .search-result")
+	log.Printf("Found %d search results for query '%s'", selection.Length(), query)
+
+	selection.Each(func(i int, sel *goquery.Selection) {
 		titleLink := sel.Find(".bible-item-title a")
 		verse := titleLink.Text()
 		url, _ := titleLink.Attr("href")
