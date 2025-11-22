@@ -52,6 +52,15 @@ func TestGetVerse(t *testing.T) {
 			expected: `<p><span><sup>5 </sup>Trust in the Lord with all your heart,</span><br/><span>and do not lean on your own understanding.</span></p><p><span><sup>6 </sup>In all your ways acknowledge him,</span><br/><span>and he will make straight your paths.</span></p>`,
 		},
 		{
+			name:     "Bug Reproduction (John 3:16 with extras)",
+			book:     "John",
+			chapter:  "3",
+			verse:    "16",
+			version:  "ESV",
+			htmlFile: "testdata/bug_repro.html",
+			expected: "<h3><span>For God So Loved the World</span></h3><p><span><span><sup>16 </sup>“For God so loved the world, that he gave his only Son, that whoever believes in him should not perish but have eternal life.</span></span></p>",
+		},
+		{
 			name:     "Psalm 121",
 			book:     "Psalm",
 			chapter:  "121",
