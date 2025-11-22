@@ -1,7 +1,7 @@
 meta {
-  name: Word Search
+  name: Single Query
   type: http
-  seq: 5
+  seq: 1
 }
 
 get {
@@ -18,7 +18,7 @@ headers {
 body:json {
   {
       "query": {
-          "words": ["Grace"]
+          "oquery": "How many people did Jesus feed at the wedding of Cana?"
       },
       "context": {
           "user": {
@@ -32,3 +32,4 @@ settings {
   encodeUrl: true
   timeout: 0
 }
+
