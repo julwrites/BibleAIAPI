@@ -1,5 +1,5 @@
 meta {
-  name: Single Query
+  name: Context Query
   type: http
   seq: 1
 }
@@ -18,9 +18,18 @@ headers {
 body:json {
   {
       "query": {
-          "prompt": "How many people did Jesus feed at the wedding of Cana?"
+          "prompt": "Which of these verses are relevant to these themes?"
       },
       "context": {
+          "verses": [
+            "1 Corinthians 15:10",
+            "Ephesians 2:8-9",
+            "1 Timothy 1:14",
+            "Genesis 5:1"
+          ],
+          "words": [
+            "Grace"
+          ],
           "user": {
               "version": "ESV"
           }
@@ -32,4 +41,5 @@ settings {
   encodeUrl: true
   timeout: 0
 }
+
 
