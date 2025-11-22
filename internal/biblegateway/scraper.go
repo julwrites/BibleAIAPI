@@ -231,6 +231,12 @@ func sanitizeSelection(s *goquery.Selection) (string, error) {
 	return strings.TrimSpace(html), nil
 }
 
+func sanitizeSnippet(s *goquery.Selection) (string, error) {
+	s.Find(".bible-item-extras").Remove()
+	s.Find("h1, h2, h3, h4, h5, h6").Remove()
+	return sanitizeSelection(s)
+}
+
 // SearchWords searches for a word or phrase and returns a list of relevant verses.
 func (s *Scraper) SearchWords(query, version string) ([]SearchResult, error) {
 	encodedQuery := url.QueryEscape(query)
@@ -259,16 +265,16 @@ func (s *Scraper) SearchWords(query, version string) ([]SearchResult, error) {
 	}
 
 	results := []SearchResult{}
-	selection := doc.Find(".search-result-list .search-result")
+	selection := doc.Find(".search-result-list .bible-item")
 	log.Printf("Found %d search results for query '%s'", selection.Length(), query)
 
 	selection.Each(func(i int, sel *goquery.Selection) {
-		titleLink := sel.Find(".bible-item-title a")
+		titleLink := sel.Find(".bible-item-title")
 		verse := titleLink.Text()
 		url, _ := titleLink.Attr("href")
 
 		textSel := sel.Find(".bible-item-text")
-		text, _ := sanitizeSelection(textSel)
+		text, _ := sanitizeSnippet(textSel)
 
 		results = append(results, SearchResult{
 			Verse: verse,
