@@ -3,6 +3,7 @@ package chat
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"bible-api-service/internal/biblegateway"
@@ -57,13 +58,62 @@ func TestChatService_Process_Success(t *testing.T) {
 	}
 
 	mockBgClient.On("GetVerse", "John", "3", "16", "NIV").Return("<h1>John 3:16</h1><p>For God so loved the world...</p>", nil)
-	mockLLMClient.On("Query", mock.Anything, "Explain this verse.\n\nBible Verses:\nJohn 3:16For God so loved the world...", req.Schema).Return(`{"explanation": "It means God loves everyone."}`, nil)
+	mockLLMClient.On("Query", mock.Anything, "Explain this verse.\n\nBible Verses:\nJohn 3:16: John 3:16For God so loved the world...", req.Schema).Return(`{"explanation": "It means God loves everyone."}`, nil)
 
 	resp, err := chatService.Process(context.Background(), req)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, resp)
 	assert.Equal(t, "It means God loves everyone.", resp["explanation"])
+
+	mockBgClient.AssertExpectations(t)
+	mockLLMClient.AssertExpectations(t)
+}
+
+func TestChatService_Process_VersesAndWords(t *testing.T) {
+	mockBgClient := new(MockBibleGatewayClient)
+	mockLLMClient := new(MockLLMClient)
+
+	mockGetLLMClient := func() (provider.LLMClient, error) {
+		return mockLLMClient, nil
+	}
+
+	chatService := NewChatService(mockBgClient, mockGetLLMClient)
+
+	req := Request{
+		VerseRefs: []string{"1 Corinthians 15:10", "Genesis 5:1"},
+		Words:     []string{"Grace"},
+		Version:   "ESV",
+		Prompt:    "Which of these verses are relevant to these themes?",
+		Schema:    `{"type": "object", "properties": {"response": {"type": "string"}}}`,
+	}
+
+	// Mock GetVerse calls
+	mockBgClient.On("GetVerse", "1 Corinthians", "15", "10", "ESV").Return("<p>But by the grace of God I am what I am...</p>", nil)
+	mockBgClient.On("GetVerse", "Genesis", "5", "1", "ESV").Return("<p>This is the book of the generations of Adam...</p>", nil)
+
+	// Mock SearchWords calls
+	searchResults := []biblegateway.SearchResult{
+		{Verse: "Ephesians 2:8", Text: "For by grace you have been saved..."},
+	}
+	mockBgClient.On("SearchWords", "Grace", "ESV").Return(searchResults, nil)
+
+	// Mock LLM Query
+	// The prompt should contain both verses and search results
+	expectedPromptPart1 := "Bible Verses:\n1 Corinthians 15:10: But by the grace of God I am what I am...\n\nGenesis 5:1: This is the book of the generations of Adam..."
+	expectedPromptPart2 := "Relevant Search Results:\nEphesians 2:8: For by grace you have been saved..."
+
+	mockLLMClient.On("Query", mock.Anything, mock.MatchedBy(func(prompt string) bool {
+		return strings.Contains(prompt, req.Prompt) &&
+			strings.Contains(prompt, expectedPromptPart1) &&
+			strings.Contains(prompt, expectedPromptPart2)
+	}), req.Schema).Return(`{"response": "Both are relevant."}`, nil)
+
+	resp, err := chatService.Process(context.Background(), req)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, resp)
+	assert.Equal(t, "Both are relevant.", resp["response"])
 
 	mockBgClient.AssertExpectations(t)
 	mockLLMClient.AssertExpectations(t)
@@ -121,7 +171,7 @@ func TestChatService_Process_BookWithSpace(t *testing.T) {
 	}
 
 	mockBgClient.On("GetVerse", "1 John", "3", "16", "NIV").Return("<h1>1 John 3:16</h1><p>This is how we know what love is...</p>", nil)
-	mockLLMClient.On("Query", mock.Anything, "Explain this verse.\n\nBible Verses:\n1 John 3:16This is how we know what love is...", req.Schema).Return(`{"explanation": "It is about sacrificial love."}`, nil)
+	mockLLMClient.On("Query", mock.Anything, "Explain this verse.\n\nBible Verses:\n1 John 3:16: 1 John 3:16This is how we know what love is...", req.Schema).Return(`{"explanation": "It is about sacrificial love."}`, nil)
 
 	resp, err := chatService.Process(context.Background(), req)
 
