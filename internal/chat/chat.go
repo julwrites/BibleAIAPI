@@ -68,7 +68,7 @@ func (s *ChatService) Process(ctx context.Context, req Request) (Response, error
 		if err != nil {
 			return nil, fmt.Errorf("failed to strip html from verse %s: %w", verseRef, err)
 		}
-		verseTexts = append(verseTexts, plainText)
+		verseTexts = append(verseTexts, fmt.Sprintf("%s: %s", verseRef, plainText))
 	}
 
 	// 3. Search for words and add to context
