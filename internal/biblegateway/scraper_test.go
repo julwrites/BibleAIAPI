@@ -120,8 +120,16 @@ func TestSearchWords(t *testing.T) {
 	}
 
 	expected := []SearchResult{
-		{Verse: "John 3:16", URL: server.URL + "/passage/?search=John%203%3A16&version=ESV"},
-		{Verse: "1 John 4:8", URL: server.URL + "/passage/?search=1%20John%204%3A8&version=ESV"},
+		{
+			Verse: "John 3:16",
+			Text:  "For God so loved the world, that he gave his only Son, that whoever believes in him should not perish but have eternal life.",
+			URL:   server.URL + "/passage/?search=John%203%3A16&version=ESV",
+		},
+		{
+			Verse: "1 John 4:8",
+			Text:  "Anyone who does not love does not know God, because God is love.",
+			URL:   server.URL + "/passage/?search=1%20John%204%3A8&version=ESV",
+		},
 	}
 
 	if len(results) != len(expected) {
@@ -131,6 +139,9 @@ func TestSearchWords(t *testing.T) {
 	for i, result := range results {
 		if result.Verse != expected[i].Verse {
 			t.Errorf("expected verse to be %s, but got %s", expected[i].Verse, result.Verse)
+		}
+		if result.Text != expected[i].Text {
+			t.Errorf("expected text to be %s, but got %s", expected[i].Text, result.Text)
 		}
 		if result.URL != expected[i].URL {
 			t.Errorf("expected url to be %s, but got %s", expected[i].URL, result.URL)

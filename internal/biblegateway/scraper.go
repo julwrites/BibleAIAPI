@@ -2,6 +2,7 @@ package biblegateway
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -162,6 +163,7 @@ func NewScraper() *Scraper {
 // SearchResult represents a search result.
 type SearchResult struct {
 	Verse string `json:"verse"`
+	Text  string `json:"text"`
 	URL   string `json:"url"`
 }
 
@@ -199,14 +201,19 @@ func (s *Scraper) GetVerse(book, chapter, verse, version string) (string, error)
 		return "", fmt.Errorf("verse not found")
 	}
 
-	isPoetry := passageSelection.Find("div.poetry").Length() > 0
+	return sanitizeSelection(passageSelection)
+}
+
+func sanitizeSelection(s *goquery.Selection) (string, error) {
+	isPoetry := s.Find("div.poetry").Length() > 0
 
 	var html string
+	var err error
 
 	if isPoetry {
-		html, err = scrapePoetry(passageSelection)
+		html, err = scrapePoetry(s)
 	} else {
-		html, err = scrapeProse(passageSelection)
+		html, err = scrapeProse(s)
 	}
 
 	if err != nil {
@@ -220,6 +227,8 @@ func (s *Scraper) GetVerse(book, chapter, verse, version string) (string, error)
 func (s *Scraper) SearchWords(query, version string) ([]SearchResult, error) {
 	encodedQuery := url.QueryEscape(query)
 	url := s.baseURL + fmt.Sprintf("/quicksearch/?quicksearch=%s&version=%s&interface=print", encodedQuery, version)
+	log.Printf("Scraping URL: %s", url)
+
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -232,6 +241,7 @@ func (s *Scraper) SearchWords(query, version string) ([]SearchResult, error) {
 	defer res.Body.Close()
 
 	if res.StatusCode != 200 {
+		log.Printf("Failed to search, status code: %d", res.StatusCode)
 		return nil, fmt.Errorf("failed to search, status code: %d", res.StatusCode)
 	}
 
@@ -240,13 +250,21 @@ func (s *Scraper) SearchWords(query, version string) ([]SearchResult, error) {
 		return nil, err
 	}
 
-	var results []SearchResult
-	doc.Find(".search-result-list .search-result").Each(func(i int, sel *goquery.Selection) {
-		link := sel.Find(".bible-item-extras a")
-		verse := link.Text()
-		url, _ := link.Attr("href")
+	results := []SearchResult{}
+	selection := doc.Find(".search-result-list .bible-item")
+	log.Printf("Found %d search results for query '%s'", selection.Length(), query)
+
+	selection.Each(func(i int, sel *goquery.Selection) {
+		titleLink := sel.Find(".bible-item-title")
+		verse := titleLink.Text()
+		url, _ := titleLink.Attr("href")
+
+		textSel := sel.Find(".bible-item-text")
+		text, _ := sanitizeSelection(textSel)
+
 		results = append(results, SearchResult{
 			Verse: verse,
+			Text:  text,
 			URL:   s.baseURL + url,
 		})
 	})
