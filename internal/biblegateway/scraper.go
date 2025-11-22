@@ -66,7 +66,7 @@ func strictSanitize(s *goquery.Selection) {
 }
 
 func removeUnwantedElements(s *goquery.Selection) {
-	s.Find(".footnote, .chapternum, .crossreference, .publisher-info-bottom, .dropdown-version-switcher, .passage-scroller").Remove()
+	s.Find(".footnote, .footnotes, .chapternum, .crossreference, .crossrefs, .publisher-info-bottom, .dropdown-version-switcher, .passage-scroller, .full-chap-link, .other-translations").Remove()
 	s.Find("sup:not(.versenum)").Remove()
 }
 
