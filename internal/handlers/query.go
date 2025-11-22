@@ -80,15 +80,14 @@ func (h *QueryHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// I will assume strict compliance.
 
 	if !hasPrompt {
-		// Check if Context is non-empty
+		// Check if Context (excluding User) is non-empty
 		hasContext := len(request.Context.History) > 0 ||
 			request.Context.Schema != "" ||
 			len(request.Context.Verses) > 0 ||
-			len(request.Context.Words) > 0 ||
-			request.Context.User.Version != ""
+			len(request.Context.Words) > 0
 
 		if hasContext {
-			util.JSONError(w, http.StatusBadRequest, "Context object is only valid with a prompt query")
+			util.JSONError(w, http.StatusBadRequest, "Context object (excluding user preferences) is only valid with a prompt query")
 			return
 		}
 	}

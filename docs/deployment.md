@@ -33,6 +33,30 @@ This document describes how to deploy the Bible API Service to Google Cloud Run.
     docker push <gcp-region>-docker.pkg.dev/<gcp-project>/<repository-name>/bible-api-service
     ```
 
+## Secret Manager Setup (Recommended)
+
+For enhanced security, it is recommended to store the `API_KEY` in Google Secret Manager instead of using an environment variable.
+
+1.  **Create the Secret:**
+    ```bash
+    gcloud secrets create API_KEY --replication-policy="automatic"
+    ```
+
+2.  **Add the API Key Value:**
+    ```bash
+    echo -n "your-secure-api-key" | gcloud secrets versions add API_KEY --data-file=-
+    ```
+
+3.  **Grant Access to Cloud Run Service Account:**
+    Ensure the service account used by Cloud Run (default is `[project-number]-compute@developer.gserviceaccount.com`) has the `Secret Manager Secret Accessor` role.
+    ```bash
+    gcloud projects add-iam-policy-binding <your-project-id> \
+        --member="serviceAccount:<your-cloud-run-sa-email>" \
+        --role="roles/secretmanager.secretAccessor"
+    ```
+
+The application will automatically attempt to fetch the `API_KEY` secret from Secret Manager. If it fails, it will fall back to the `API_KEY` environment variable.
+
 ## Deploying to Cloud Run
 
 Deploy the service using `gcloud`. Ensure all necessary environment variables are set.
@@ -43,16 +67,22 @@ gcloud run deploy bible-api-service \
     --platform managed \
     --region <gcp-region> \
     --allow-unauthenticated \
-    --set-env-vars="API_KEY=<your-api-key>,GCP_PROJECT_ID=<your-project-id>,LLM_PROVIDERS=openai,gemini,OPENAI_API_KEY=<your-openai-key>,GEMINI_API_KEY=<your-gemini-key>"
+    --set-env-vars="GCP_PROJECT_ID=<your-project-id>,LLM_PROVIDERS=openai,gemini,OPENAI_API_KEY=<your-openai-key>,GEMINI_API_KEY=<your-gemini-key>"
 ```
 
 **Note**: The `--allow-unauthenticated` flag makes the service publicly accessible URL-wise, but the application itself still enforces authentication via the `X-API-KEY` header.
+
+If you are **not** using Secret Manager, you must include `API_KEY` in `--set-env-vars`:
+
+```bash
+--set-env-vars="API_KEY=<your-api-key>,..."
+```
 
 ## Environment Variables Reference
 
 | Variable | Description | Required? |
 | :--- | :--- | :--- |
-| `API_KEY` | Secret key for client authentication. | **Yes** |
+| `API_KEY` | Secret key for client authentication. | **Fallback** (if not in Secret Manager) |
 | `GCP_PROJECT_ID` | Google Cloud Project ID (for Secret Manager). | **Yes** (for Prod) |
 | `LLM_PROVIDERS` | Comma-separated list of providers (e.g., `openai,gemini,deepseek`). | **Yes** (for LLM features) |
 | `OPENAI_API_KEY` | API key for OpenAI. | If using OpenAI |
