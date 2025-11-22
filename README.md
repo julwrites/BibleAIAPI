@@ -51,6 +51,20 @@ For detailed API documentation, see the [OpenAPI specification](./docs/api/opena
       -d '{"query": {"verses": ["John 3:16"]}, "context": {"user": {"version": "ESV"}}}'
     ```
 
+### Testing Locally
+
+You can use the provided script to automatically build, run, and verify the API service:
+
+```bash
+./scripts/test_api.sh
+```
+
+This script will:
+1.  Build the server binary.
+2.  Start the server in the background.
+3.  Run `curl` requests for Verse lookup (Prose & Poetry) and Word search.
+4.  Skip LLM tests if relevant API keys (`OPENAI_API_KEY`, etc.) are not found in the environment.
+
 ### Building with Docker
 
 ```bash
