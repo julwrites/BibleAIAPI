@@ -59,6 +59,13 @@ For detailed API documentation, see the [OpenAPI specification](./docs/api/opena
       -d '{"query": {"prompt": "Explain this verse"}, "context": {"verses": ["John 3:16"], "user": {"version": "ESV"}}}'
     ```
 
+    **LLM Prompt Request with Word Search Context:**
+    ```bash
+    curl -X POST http://localhost:8080/query \
+      -H "X-API-KEY: secret" \
+      -d '{"query": {"prompt": "Summarize the verses containing this word"}, "context": {"words": ["Grace"], "user": {"version": "ESV"}}}'
+    ```
+
 ### Testing Locally
 
 You can use the provided script to automatically build, run, and verify the API service:
