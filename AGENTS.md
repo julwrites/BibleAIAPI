@@ -24,7 +24,8 @@ The Bible API Service is a Go-based stateless microservice designed for serverle
 
 -   `cmd/server`: Application entry point.
 -   `internal/biblegateway`: Scraper logic. **Critical**: Must handle `div.poetry` for poetry preservation.
--   `internal/handlers`: HTTP handlers. `QueryHandler` routes requests based on payload (`instruction` > `chat_prompt` > `verses`).
+-   `internal/handlers`: HTTP handlers. `QueryHandler` routes requests based on payload (`verses` vs `words` vs `prompt`).
+    -   **Validation**: The API enforces strict validation. A query must contain exactly one type (`verses`, `words`, `prompt`). The `context` object is only permitted when `query.prompt` is present.
 -   `internal/llm`: Modular LLM provider implementations.
 -   `internal/middleware`: Auth middleware (`X-API-KEY`) and logging.
 -   `internal/secrets`: Secret retrieval logic.

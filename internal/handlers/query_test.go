@@ -2,15 +2,13 @@ package handlers
 
 import (
 	"bible-api-service/internal/biblegateway"
-	"bible-api-service/internal/llm/provider"
+	"bible-api-service/internal/chat"
 	"bytes"
 	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-
-	"github.com/thomaspoignant/go-feature-flag/ffcontext"
 )
 
 type mockBibleGatewayClient struct {
@@ -104,28 +102,31 @@ func TestHandleWordSearchQuery(t *testing.T) {
 	}
 }
 
-type mockLLMClient struct {
-	queryFunc func(ctx context.Context, query, schema string) (string, error)
+type mockChatService struct {
+	processFunc func(ctx context.Context, req chat.Request) (chat.Response, error)
 }
 
-func (m *mockLLMClient) Query(ctx context.Context, query, schema string) (string, error) {
-	return m.queryFunc(ctx, query, schema)
+func (m *mockChatService) Process(ctx context.Context, req chat.Request) (chat.Response, error) {
+	return m.processFunc(ctx, req)
 }
 
-func TestHandleOpenQuery(t *testing.T) {
+func TestHandlePromptQuery(t *testing.T) {
 	handler := &QueryHandler{
-		GetLLMClient: func() (provider.LLMClient, error) {
-			return &mockLLMClient{
-				queryFunc: func(ctx context.Context, query, schema string) (string, error) {
-					return `{"text": "Jesus fed 5,000 men."}`, nil
-				},
-			}, nil
+		ChatService: &mockChatService{
+			processFunc: func(ctx context.Context, req chat.Request) (chat.Response, error) {
+				return chat.Response{"text": "Jesus fed 5,000 men."}, nil
+			},
 		},
 	}
 
 	reqBody := `{
 		"query": {
-			"oquery": "How many people did Jesus feed?"
+			"prompt": "How many people did Jesus feed?"
+		},
+		"context": {
+			"user": {
+				"version": "ESV"
+			}
 		}
 	}`
 	req := httptest.NewRequest("POST", "/query", bytes.NewBufferString(reqBody))
@@ -138,7 +139,7 @@ func TestHandleOpenQuery(t *testing.T) {
 			status, http.StatusOK)
 	}
 
-	var response map[string]string
+	var response map[string]interface{}
 	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
@@ -150,39 +151,24 @@ func TestHandleOpenQuery(t *testing.T) {
 	}
 }
 
-type mockFFClient struct {
-	jsonVariationFunc func(flagKey string, context ffcontext.EvaluationContext, defaultValue map[string]interface{}) (map[string]interface{}, error)
-}
-
-func (m *mockFFClient) JSONVariation(flagKey string, context ffcontext.EvaluationContext, defaultValue map[string]interface{}) (map[string]interface{}, error) {
-	return m.jsonVariationFunc(flagKey, context, defaultValue)
-}
-
-func TestHandleInstruction(t *testing.T) {
+func TestHandlePromptQuery_WithContext(t *testing.T) {
 	handler := &QueryHandler{
-		FFClient: &mockFFClient{
-			jsonVariationFunc: func(flagKey string, context ffcontext.EvaluationContext, defaultValue map[string]interface{}) (map[string]interface{}, error) {
-				return map[string]interface{}{
-					"prompt": "test prompt",
-					"schema": "test schema",
-				}, nil
+		ChatService: &mockChatService{
+			processFunc: func(ctx context.Context, req chat.Request) (chat.Response, error) {
+				if len(req.VerseRefs) != 1 || req.VerseRefs[0] != "John 3:16" {
+					return nil, &http.MaxBytesError{} // Use an error to signal mismatch
+				}
+				return chat.Response{"response": "ok"}, nil
 			},
-		},
-		GetLLMClient: func() (provider.LLMClient, error) {
-			return &mockLLMClient{
-				queryFunc: func(ctx context.Context, query, schema string) (string, error) {
-					return `{"response": "test response"}`, nil
-				},
-			}, nil
 		},
 	}
 
 	reqBody := `{
-		"context": {
-			"instruction": "test_instruction"
-		},
 		"query": {
-			"oquery": "test query"
+			"prompt": "Explain this verse"
+		},
+		"context": {
+			"verses": ["John 3:16"]
 		}
 	}`
 	req := httptest.NewRequest("POST", "/query", bytes.NewBufferString(reqBody))
@@ -194,23 +180,56 @@ func TestHandleInstruction(t *testing.T) {
 		t.Errorf("handler returned wrong status code: got %v want %v",
 			status, http.StatusOK)
 	}
+}
 
-	var response map[string]string
-	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
-		t.Fatalf("failed to decode response: %v", err)
-	}
+func TestInvalidRequest_MultipleQueries(t *testing.T) {
+	handler := &QueryHandler{}
 
-	expected := "test response"
-	if response["response"] != expected {
-		t.Errorf("handler returned unexpected body: got %v want %v",
-			response["response"], expected)
+	reqBody := `{
+		"query": {
+			"verses": ["John 3:16"],
+			"prompt": "Explain this"
+		}
+	}`
+	req := httptest.NewRequest("POST", "/query", bytes.NewBufferString(reqBody))
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusBadRequest {
+		t.Errorf("handler returned wrong status code: got %v want %v",
+			status, http.StatusBadRequest)
 	}
 }
 
-func TestInvalidRequestPayload(t *testing.T) {
+func TestInvalidRequest_ContextWithoutPrompt(t *testing.T) {
 	handler := &QueryHandler{}
 
-	reqBody := `{invalid json}`
+	reqBody := `{
+		"query": {
+			"verses": ["John 3:16"]
+		},
+		"context": {
+			"verses": ["John 3:16"]
+		}
+	}`
+	req := httptest.NewRequest("POST", "/query", bytes.NewBufferString(reqBody))
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusBadRequest {
+		t.Errorf("handler returned wrong status code: got %v want %v",
+			status, http.StatusBadRequest)
+	}
+}
+
+func TestInvalidRequest_NoQuery(t *testing.T) {
+	handler := &QueryHandler{}
+
+	reqBody := `{
+		"query": {}
+	}`
 	req := httptest.NewRequest("POST", "/query", bytes.NewBufferString(reqBody))
 	rr := httptest.NewRecorder()
 
@@ -325,44 +344,23 @@ func TestHandleWordSearchQuery_Error(t *testing.T) {
 	}
 }
 
-func TestHandleOpenQuery_Error(t *testing.T) {
+func TestHandlePromptQuery_Error(t *testing.T) {
 	handler := &QueryHandler{
-		GetLLMClient: func() (provider.LLMClient, error) {
-			return nil, &http.MaxBytesError{}
-		},
-	}
-
-	reqBody := `{
-		"query": {
-			"oquery": "How many people did Jesus feed?"
-		}
-	}`
-	req := httptest.NewRequest("POST", "/query", bytes.NewBufferString(reqBody))
-	rr := httptest.NewRecorder()
-
-	handler.ServeHTTP(rr, req)
-
-	if status := rr.Code; status != http.StatusInternalServerError {
-		t.Errorf("handler returned wrong status code: got %v want %v",
-			status, http.StatusInternalServerError)
-	}
-}
-
-func TestHandleInstruction_FFClient_Error(t *testing.T) {
-	handler := &QueryHandler{
-		FFClient: &mockFFClient{
-			jsonVariationFunc: func(flagKey string, context ffcontext.EvaluationContext, defaultValue map[string]interface{}) (map[string]interface{}, error) {
+		ChatService: &mockChatService{
+			processFunc: func(ctx context.Context, req chat.Request) (chat.Response, error) {
 				return nil, &http.MaxBytesError{}
 			},
 		},
 	}
 
 	reqBody := `{
-		"context": {
-			"instruction": "test_instruction"
-		},
 		"query": {
-			"oquery": "test query"
+			"prompt": "Explain this"
+		},
+		"context": {
+			"user": {
+				"version": "ESV"
+			}
 		}
 	}`
 	req := httptest.NewRequest("POST", "/query", bytes.NewBufferString(reqBody))
@@ -376,44 +374,10 @@ func TestHandleInstruction_FFClient_Error(t *testing.T) {
 	}
 }
 
-func TestHandleInstruction_LLM_Error(t *testing.T) {
-	handler := &QueryHandler{
-		FFClient: &mockFFClient{
-			jsonVariationFunc: func(flagKey string, context ffcontext.EvaluationContext, defaultValue map[string]interface{}) (map[string]interface{}, error) {
-				return map[string]interface{}{
-					"prompt": "test prompt",
-					"schema": "test schema",
-				}, nil
-			},
-		},
-		GetLLMClient: func() (provider.LLMClient, error) {
-			return nil, &http.MaxBytesError{}
-		},
-	}
-
-	reqBody := `{
-		"context": {
-			"instruction": "test_instruction"
-		},
-		"query": {
-			"oquery": "test query"
-		}
-	}`
-	req := httptest.NewRequest("POST", "/query", bytes.NewBufferString(reqBody))
-	rr := httptest.NewRecorder()
-
-	handler.ServeHTTP(rr, req)
-
-	if status := rr.Code; status != http.StatusInternalServerError {
-		t.Errorf("handler returned wrong status code: got %v want %v",
-			status, http.StatusInternalServerError)
-	}
-}
-
-func TestNoQueryProvided(t *testing.T) {
+func TestInvalidRequestPayload(t *testing.T) {
 	handler := &QueryHandler{}
 
-	reqBody := `{}`
+	reqBody := `{invalid json}`
 	req := httptest.NewRequest("POST", "/query", bytes.NewBufferString(reqBody))
 	rr := httptest.NewRecorder()
 
