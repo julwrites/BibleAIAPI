@@ -31,6 +31,11 @@ func sanitizeNodes(n *html.Node) {
 		c = prev
 	}
 
+	if n.Type == html.CommentNode {
+		n.Parent.RemoveChild(n)
+		return
+	}
+
 	if n.Type == html.ElementNode {
 		if n.Data == "script" || n.Data == "style" {
 			n.Parent.RemoveChild(n)
@@ -66,8 +71,11 @@ func strictSanitize(s *goquery.Selection) {
 }
 
 func removeUnwantedElements(s *goquery.Selection) {
-	s.Find(".footnote, .chapternum, .crossreference, .publisher-info-bottom, .dropdown-version-switcher, .passage-scroller").Remove()
+	s.Find(".footnote, .footnotes, .chapternum, .crossreference, .crossrefs, .publisher-info-bottom, .dropdown-version-switcher, .passage-scroller, .full-chap-link, .other-translations").Remove()
 	s.Find("sup:not(.versenum)").Remove()
+	s.Find("a").FilterFunction(func(i int, sel *goquery.Selection) bool {
+		return strings.Contains(sel.Text(), "in all English translations")
+	}).Remove()
 }
 
 func unwrapSmallCaps(s *goquery.Selection) {
