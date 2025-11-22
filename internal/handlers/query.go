@@ -8,6 +8,7 @@ import (
 	"bible-api-service/internal/util"
 	"bytes"
 	"encoding/json"
+	"log"
 	"net/http"
 	"strings"
 	"text/template"
@@ -108,13 +109,16 @@ func (h *QueryHandler) handleVerseQuery(w http.ResponseWriter, r *http.Request, 
 }
 
 func (h *QueryHandler) handleWordSearchQuery(w http.ResponseWriter, r *http.Request, request QueryRequest) {
-	var allResults []biblegateway.SearchResult
+	log.Printf("Handling word search query for words: %v", request.Query.Words)
+	allResults := make([]biblegateway.SearchResult, 0)
 	for _, word := range request.Query.Words {
 		results, err := h.BibleGatewayClient.SearchWords(word, request.Context.User.Version)
 		if err != nil {
+			log.Printf("Error searching words '%s': %v", word, err)
 			util.JSONError(w, http.StatusInternalServerError, "Failed to search words")
 			return
 		}
+		log.Printf("Found %d results for word '%s'", len(results), word)
 		allResults = append(allResults, results...)
 	}
 	json.NewEncoder(w).Encode(allResults)
