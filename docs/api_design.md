@@ -33,7 +33,7 @@ The API uses a standardized JSON error structure for all error responses:
 
 Common HTTP status codes are used to indicate the success or failure of a request.
 - `200 OK`: The request was successful.
-- `400 Bad Request`: The request was malformed (e.g., invalid JSON).
+- `400 Bad Request`: The request was malformed (e.g., invalid JSON) or violated API rules (e.g. multiple query types, context without prompt).
 - `401 Unauthorized`: The API key is missing or invalid.
 - `404 Not Found`: The requested resource was not found.
 - `500 Internal Server Error`: An unexpected error occurred on the server.

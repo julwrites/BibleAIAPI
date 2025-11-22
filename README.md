@@ -7,7 +7,7 @@ A stateless microservice that provides a unified API for querying Bible verses, 
 -   **Verse Retrieval**: Fetch verses by reference (e.g., `John 3:16`) with formatting preserved.
 -   **Word Search**: Find verses by keywords.
 -   **LLM Integration**: Ask questions or provide instructions (e.g., "Summarize", "Cross-reference") using various LLM providers (OpenAI, Gemini, DeepSeek).
--   **Smart Routing**: Automatically routes queries based on the presence of instructions, chat prompts, or simple verse references.
+-   **Smart Routing**: Routes queries based on whether they are verse lookups, word searches, or LLM prompts.
 -   **Feature Flags**: Dynamic configuration via GitHub-hosted feature flags.
 
 ## API Reference
@@ -48,7 +48,15 @@ For detailed API documentation, see the [OpenAPI specification](./docs/api/opena
     ```bash
     curl -X POST http://localhost:8080/query \
       -H "X-API-KEY: secret" \
-      -d '{"query": {"verses": ["John 3:16"]}, "context": {"user": {"version": "ESV"}}}'
+      -d '{"query": {"verses": ["John 3:16"]}}'
+    ```
+    *Note: For verse queries, the `context` object is not allowed.*
+
+    **LLM Prompt Request:**
+    ```bash
+    curl -X POST http://localhost:8080/query \
+      -H "X-API-KEY: secret" \
+      -d '{"query": {"prompt": "Explain this verse"}, "context": {"verses": ["John 3:16"], "user": {"version": "ESV"}}}'
     ```
 
 ### Testing Locally
