@@ -1,0 +1,22 @@
+meta {
+  name: Biblegateway Passage
+  type: http
+  seq: 2
+}
+
+get {
+  url: https://classic.biblegateway.com/passage/?search=Proverbs 3:5-6&version=ESV&interface=print
+  body: none
+  auth: inherit
+}
+
+params:query {
+  search: Proverbs 3:5-6
+  version: ESV
+  interface: print
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

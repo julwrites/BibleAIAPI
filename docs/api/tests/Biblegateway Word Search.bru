@@ -1,0 +1,22 @@
+meta {
+  name: Biblegateway Word Search
+  type: http
+  seq: 4
+}
+
+get {
+  url: https://classic.biblegateway.com/quicksearch/?quicksearch=Grace&version=ESV&interface=print
+  body: none
+  auth: inherit
+}
+
+params:query {
+  quicksearch: Grace
+  version: ESV
+  interface: print
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
