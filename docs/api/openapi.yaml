@@ -104,6 +104,7 @@ components:
               type: array
               items:
                 type: string
+              description: "List of words to search for and include as context."
             user:
               type: object
               properties:

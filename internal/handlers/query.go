@@ -148,6 +148,7 @@ func (h *QueryHandler) handlePromptQuery(w http.ResponseWriter, r *http.Request,
 
 	chatReq := chat.Request{
 		VerseRefs: request.Context.Verses, // Verses for context come from Context.Verses
+		Words:     request.Context.Words,  // Words for context come from Context.Words
 		Version:   request.Context.User.Version,
 		Prompt:    request.Query.Prompt,
 		Schema:    schema,
