@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"bible-api-service/internal/biblegateway"
 	"bible-api-service/internal/llm/provider"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -18,6 +19,14 @@ type MockBibleGatewayClient struct {
 func (m *MockBibleGatewayClient) GetVerse(book, chapter, verse, version string) (string, error) {
 	args := m.Called(book, chapter, verse, version)
 	return args.String(0), args.Error(1)
+}
+
+func (m *MockBibleGatewayClient) SearchWords(query, version string) ([]biblegateway.SearchResult, error) {
+	args := m.Called(query, version)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]biblegateway.SearchResult), args.Error(1)
 }
 
 // MockLLMClient is a mock type for the LLMClient interface
@@ -55,6 +64,40 @@ func TestChatService_Process_Success(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, resp)
 	assert.Equal(t, "It means God loves everyone.", resp["explanation"])
+
+	mockBgClient.AssertExpectations(t)
+	mockLLMClient.AssertExpectations(t)
+}
+
+func TestChatService_Process_WithWords(t *testing.T) {
+	mockBgClient := new(MockBibleGatewayClient)
+	mockLLMClient := new(MockLLMClient)
+
+	mockGetLLMClient := func() (provider.LLMClient, error) {
+		return mockLLMClient, nil
+	}
+
+	chatService := NewChatService(mockBgClient, mockGetLLMClient)
+
+	req := Request{
+		Words:   []string{"Grace"},
+		Version: "NIV",
+		Prompt:  "Summarize these search results.",
+		Schema:  `{"type": "object", "properties": {"summary": {"type": "string"}}}`,
+	}
+
+	searchResults := []biblegateway.SearchResult{
+		{Verse: "Ephesians 2:8", Text: "For it is by grace you have been saved..."},
+	}
+
+	mockBgClient.On("SearchWords", "Grace", "NIV").Return(searchResults, nil)
+	mockLLMClient.On("Query", mock.Anything, "Summarize these search results.\n\nRelevant Search Results:\nEphesians 2:8: For it is by grace you have been saved...", req.Schema).Return(`{"summary": "Grace saves."}`, nil)
+
+	resp, err := chatService.Process(context.Background(), req)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, resp)
+	assert.Equal(t, "Grace saves.", resp["summary"])
 
 	mockBgClient.AssertExpectations(t)
 	mockLLMClient.AssertExpectations(t)

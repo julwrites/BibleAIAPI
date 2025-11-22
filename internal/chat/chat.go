@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"bible-api-service/internal/biblegateway"
 	"bible-api-service/internal/llm/provider"
 	"bible-api-service/internal/util"
 
@@ -15,6 +16,7 @@ import (
 // BibleGatewayClient defines the interface for the Bible Gateway client.
 type BibleGatewayClient interface {
 	GetVerse(book, chapter, verse, version string) (string, error)
+	SearchWords(query, version string) ([]biblegateway.SearchResult, error)
 }
 
 // GetLLMClient defines the function signature for getting an LLM client.
@@ -37,6 +39,7 @@ func NewChatService(bgClient BibleGatewayClient, getLLMClient GetLLMClient) *Cha
 // Request represents the input for the chat service.
 type Request struct {
 	VerseRefs []string `json:"verse_refs"`
+	Words     []string `json:"words"`
 	Version   string   `json:"version"`
 	Prompt    string   `json:"prompt"`
 	Schema    string   `json:"schema"`
@@ -68,23 +71,47 @@ func (s *ChatService) Process(ctx context.Context, req Request) (Response, error
 		verseTexts = append(verseTexts, plainText)
 	}
 
-	// 3. Add the text content to the chat context for llm
-	fullVerseText := strings.Join(verseTexts, "\n\n")
-	llmPrompt := fmt.Sprintf("%s\n\nBible Verses:\n%s", req.Prompt, fullVerseText)
+	// 3. Search for words and add to context
+	var searchResults []string
+	for _, word := range req.Words {
+		results, err := s.BibleGatewayClient.SearchWords(word, req.Version)
+		if err != nil {
+			return nil, fmt.Errorf("failed to search word %s: %w", word, err)
+		}
+		for _, result := range results {
+			searchResults = append(searchResults, fmt.Sprintf("%s: %s", result.Verse, result.Text))
+		}
+	}
 
-	// 4. Refer to the system prompt specified by the request, and send this
+	// 4. Add the text content to the chat context for llm
+	var promptBuilder strings.Builder
+	promptBuilder.WriteString(req.Prompt)
+
+	if len(verseTexts) > 0 {
+		promptBuilder.WriteString("\n\nBible Verses:\n")
+		promptBuilder.WriteString(strings.Join(verseTexts, "\n\n"))
+	}
+
+	if len(searchResults) > 0 {
+		promptBuilder.WriteString("\n\nRelevant Search Results:\n")
+		promptBuilder.WriteString(strings.Join(searchResults, "\n\n"))
+	}
+
+	llmPrompt := promptBuilder.String()
+
+	// 5. Refer to the system prompt specified by the request, and send this
 	llmClient, err := s.GetLLMClient()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get llm client: %w", err)
 	}
 
-	// 5. Require the llm response to be structured output
+	// 6. Require the llm response to be structured output
 	llmResponse, err := llmClient.Query(ctx, llmPrompt, req.Schema)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query llm: %w", err)
 	}
 
-	// 6. Return the structured output.
+	// 7. Return the structured output.
 	var result Response
 	if err := json.Unmarshal([]byte(llmResponse), &result); err != nil {
 		return nil, fmt.Errorf("failed to parse llm response: %w", err)
