@@ -12,7 +12,7 @@ import (
 	"bible-api-service/internal/llm/openai"
 	"bible-api-service/internal/llm/openapicustom"
 	"bible-api-service/internal/llm/provider"
-	"github.com/gofor-little/env"
+	"bible-api-service/internal/secrets"
 )
 
 // FallbackClient is a client that tries a list of providers in order until one succeeds.
@@ -20,11 +20,11 @@ type FallbackClient struct {
 	clients []provider.LLMClient
 }
 
-// NewFallbackClient creates a new FallbackClient with the providers specified in the LLM_PROVIDERS environment variable.
-func NewFallbackClient() (*FallbackClient, error) {
-	providerNames, err := env.MustGet("LLM_PROVIDERS")
+// NewFallbackClient creates a new FallbackClient with the providers specified in the LLM_PROVIDERS environment variable or secret.
+func NewFallbackClient(ctx context.Context, secretsClient secrets.Client) (*FallbackClient, error) {
+	providerNames, err := secrets.Get(ctx, secretsClient, "LLM_PROVIDERS")
 	if err != nil {
-		return nil, errors.New("LLM_PROVIDERS environment variable not set")
+		return nil, errors.New("LLM_PROVIDERS secret or environment variable not set")
 	}
 
 	providers := strings.Split(providerNames, ",")
@@ -36,13 +36,13 @@ func NewFallbackClient() (*FallbackClient, error) {
 
 		switch p {
 		case "openai":
-			client, err = openai.NewClient()
+			client, err = openai.NewClient(ctx, secretsClient)
 		case "openai-custom":
-			client, err = openapicustom.NewClient()
+			client, err = openapicustom.NewClient(ctx, secretsClient)
 		case "deepseek":
-			client, err = deepseek.NewClient()
+			client, err = deepseek.NewClient(ctx, secretsClient)
 		case "gemini":
-			client, err = gemini.NewClient()
+			client, err = gemini.NewClient(ctx, secretsClient)
 		default:
 			// Optionally log a warning for unsupported providers
 			continue

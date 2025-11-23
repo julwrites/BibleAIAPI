@@ -28,7 +28,7 @@ func main() {
 	}
 	authMiddleware := middleware.NewAuthMiddleware(secretsClient)
 
-	queryHandler := handlers.NewQueryHandler()
+	queryHandler := handlers.NewQueryHandler(secretsClient)
 	http.Handle("/query", middleware.Logging(authMiddleware.APIKeyAuth(queryHandler)))
 
 	log.Printf("Server starting on port %s\n", port)

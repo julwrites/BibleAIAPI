@@ -36,7 +36,7 @@ func TestQueryEndpointIntegration(t *testing.T) {
 		},
 	}
 	authMiddleware := middleware.NewAuthMiddleware(secretsClient)
-	handler := NewQueryHandler()
+	handler := NewQueryHandler(secretsClient)
 	server := httptest.NewServer(middleware.Logging(authMiddleware.APIKeyAuth(handler)))
 	defer server.Close()
 

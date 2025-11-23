@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
 	"github.com/googleapis/gax-go/v2"
@@ -52,4 +53,21 @@ func (c *googleSecretManagerClient) GetSecret(ctx context.Context, name string) 
 	}
 
 	return string(result.Payload.Data), nil
+}
+
+// Get retrieves a secret using the provided client, falling back to environment variables if retrieval fails.
+func Get(ctx context.Context, client Client, key string) (string, error) {
+	val, err := client.GetSecret(ctx, key)
+	if err == nil && val != "" {
+		return val, nil
+	}
+
+	if valEnv := os.Getenv(key); valEnv != "" {
+		return valEnv, nil
+	}
+
+	if err != nil {
+		return "", err
+	}
+	return "", fmt.Errorf("secret %q not found", key)
 }

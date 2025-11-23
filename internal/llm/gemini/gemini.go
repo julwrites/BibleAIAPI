@@ -6,7 +6,8 @@ import (
 	"errors"
 
 	"bible-api-service/internal/llm/provider"
-	"github.com/gofor-little/env"
+	"bible-api-service/internal/secrets"
+
 	"github.com/tmc/langchaingo/llms"
 	"github.com/tmc/langchaingo/llms/googleai"
 )
@@ -19,13 +20,13 @@ func NewGemini(llm llms.Model) provider.LLMClient {
 	return &GeminiClient{llm: llm}
 }
 
-func NewClient() (provider.LLMClient, error) {
-	apiKey, err := env.MustGet("GEMINI_API_KEY")
+func NewClient(ctx context.Context, secretsClient secrets.Client) (provider.LLMClient, error) {
+	apiKey, err := secrets.Get(ctx, secretsClient, "GEMINI_API_KEY")
 	if err != nil {
-		return nil, errors.New("GEMINI_API_KEY environment variable not set")
+		return nil, errors.New("GEMINI_API_KEY secret or environment variable not set")
 	}
 
-	llm, err := googleai.New(context.Background(), googleai.WithAPIKey(apiKey))
+	llm, err := googleai.New(ctx, googleai.WithAPIKey(apiKey))
 	if err != nil {
 		return nil, err
 	}

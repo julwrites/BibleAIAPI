@@ -6,6 +6,8 @@ import (
 	"os"
 	"testing"
 
+	"bible-api-service/internal/secrets"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/tmc/langchaingo/llms"
 )
@@ -26,9 +28,11 @@ func (m *mockLLM) Call(ctx context.Context, prompt string, options ...llms.CallO
 }
 
 func TestNewClient(t *testing.T) {
+	secretsClient := &secrets.EnvClient{}
+
 	t.Run("No API key", func(t *testing.T) {
 		os.Unsetenv("OPENAI_CUSTOM_API_KEY")
-		_, err := NewClient()
+		_, err := NewClient(context.Background(), secretsClient)
 		if err == nil {
 			t.Error("expected error when OPENAI_CUSTOM_API_KEY is not set")
 		}
@@ -38,7 +42,7 @@ func TestNewClient(t *testing.T) {
 		os.Setenv("OPENAI_CUSTOM_API_KEY", "test-key")
 		defer os.Unsetenv("OPENAI_CUSTOM_API_KEY")
 		os.Unsetenv("OPENAI_CUSTOM_BASE_URL")
-		_, err := NewClient()
+		_, err := NewClient(context.Background(), secretsClient)
 		if err == nil {
 			t.Error("expected error when OPENAI_CUSTOM_BASE_URL is not set")
 		}
@@ -47,7 +51,7 @@ func TestNewClient(t *testing.T) {
 	t.Run("API key and base URL set", func(t *testing.T) {
 		os.Setenv("OPENAI_CUSTOM_API_KEY", "test-key")
 		os.Setenv("OPENAI_CUSTOM_BASE_URL", "http://localhost")
-		client, err := NewClient()
+		client, err := NewClient(context.Background(), secretsClient)
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)
 		}
