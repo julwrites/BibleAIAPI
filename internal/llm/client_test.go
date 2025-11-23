@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"bible-api-service/internal/llm/provider"
+	"bible-api-service/internal/secrets"
 )
 
 // mockLLMClient is a mock implementation of the LLMClient interface for testing.
@@ -23,9 +24,11 @@ func (m *mockLLMClient) Query(ctx context.Context, prompt string, schema string)
 }
 
 func TestNewFallbackClient(t *testing.T) {
+	secretsClient := &secrets.EnvClient{}
+
 	t.Run("LLM_PROVIDERS not set", func(t *testing.T) {
 		os.Unsetenv("LLM_PROVIDERS")
-		_, err := NewFallbackClient()
+		_, err := NewFallbackClient(context.Background(), secretsClient)
 		if err == nil {
 			t.Error("expected error when LLM_PROVIDERS is not set")
 		}
@@ -34,7 +37,7 @@ func TestNewFallbackClient(t *testing.T) {
 	t.Run("Unsupported provider", func(t *testing.T) {
 		os.Setenv("LLM_PROVIDERS", "unsupported")
 		defer os.Unsetenv("LLM_PROVIDERS")
-		_, err := NewFallbackClient()
+		_, err := NewFallbackClient(context.Background(), secretsClient)
 		if err == nil {
 			t.Error("expected error for unsupported provider")
 		}
@@ -45,7 +48,7 @@ func TestNewFallbackClient(t *testing.T) {
 		os.Setenv("OPENAI_API_KEY", "test-key")
 		defer os.Unsetenv("LLM_PROVIDERS")
 		defer os.Unsetenv("OPENAI_API_KEY")
-		client, err := NewFallbackClient()
+		client, err := NewFallbackClient(context.Background(), secretsClient)
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)
 		}
@@ -62,7 +65,7 @@ func TestNewFallbackClient(t *testing.T) {
 		os.Setenv("OPENAI_API_KEY", "test-key")
 		defer os.Unsetenv("LLM_PROVIDERS")
 		defer os.Unsetenv("OPENAI_API_KEY")
-		client, err := NewFallbackClient()
+		client, err := NewFallbackClient(context.Background(), secretsClient)
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)
 		}

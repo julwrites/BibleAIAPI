@@ -3,6 +3,7 @@ package handlers
 import (
 	"bible-api-service/internal/biblegateway"
 	"bible-api-service/internal/chat"
+	"bible-api-service/internal/secrets"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -282,7 +283,7 @@ func TestHandleVerseQuery_BookWithSpaces(t *testing.T) {
 }
 
 func TestNewQueryHandler(t *testing.T) {
-	handler := NewQueryHandler()
+	handler := NewQueryHandler(&secrets.EnvClient{})
 	if handler.BibleGatewayClient == nil {
 		t.Error("expected BibleGatewayClient to be initialized")
 	}

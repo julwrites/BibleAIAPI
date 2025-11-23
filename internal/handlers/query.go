@@ -5,7 +5,9 @@ import (
 	"bible-api-service/internal/chat"
 	"bible-api-service/internal/llm"
 	"bible-api-service/internal/llm/provider"
+	"bible-api-service/internal/secrets"
 	"bible-api-service/internal/util"
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -21,10 +23,10 @@ type QueryHandler struct {
 }
 
 // NewQueryHandler creates a new QueryHandler with default clients.
-func NewQueryHandler() *QueryHandler {
+func NewQueryHandler(secretsClient secrets.Client) *QueryHandler {
 	bibleGatewayClient := biblegateway.NewScraper()
 	getLLMClient := func() (provider.LLMClient, error) {
-		return llm.NewFallbackClient()
+		return llm.NewFallbackClient(context.Background(), secretsClient)
 	}
 	return &QueryHandler{
 		BibleGatewayClient: bibleGatewayClient,
