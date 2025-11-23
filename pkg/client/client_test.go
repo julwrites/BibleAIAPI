@@ -55,3 +55,45 @@ func TestChat(t *testing.T) {
 		t.Errorf("Expected summary, got %v", resp["summary"])
 	}
 }
+
+func TestSearchWords(t *testing.T) {
+	mockResponse := []interface{}{
+		map[string]interface{}{"title": "Verse 1", "text": "Text 1"},
+	}
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(mockResponse)
+	}))
+	defer ts.Close()
+
+	client := NewClient(ts.URL, "test-key")
+	resp, err := client.SearchWords(context.Background(), []string{"test"}, "ESV")
+	if err != nil {
+		t.Fatalf("SearchWords failed: %v", err)
+	}
+
+	if len(resp) != 1 {
+		t.Errorf("Expected 1 result, got %d", len(resp))
+	}
+}
+
+func TestOpenQuery(t *testing.T) {
+	mockResponse := OQueryResponse{
+		Text: "Here is the answer",
+	}
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(mockResponse)
+	}))
+	defer ts.Close()
+
+	client := NewClient(ts.URL, "test-key")
+	resp, err := client.OpenQuery(context.Background(), "question", "ESV")
+	if err != nil {
+		t.Fatalf("OpenQuery failed: %v", err)
+	}
+
+	if resp.Text != "Here is the answer" {
+		t.Errorf("Expected response, got %v", resp.Text)
+	}
+}
