@@ -3,6 +3,7 @@ package tests
 import (
 	"bible-api-service/internal/biblegateway"
 	"bible-api-service/internal/handlers"
+	"bible-api-service/internal/secrets"
 	"bytes"
 	"encoding/json"
 	"net/http"
@@ -43,7 +44,7 @@ func TestAPI_WordSearch_CleanOutput(t *testing.T) {
 	scraper := biblegateway.NewScraper()
 	scraper.SetBaseURL(server.URL)
 
-	handler := handlers.NewQueryHandler()
+	handler := handlers.NewQueryHandler(&secrets.EnvClient{})
 	handler.BibleGatewayClient = scraper
 
 	// 3. Test Word Search
