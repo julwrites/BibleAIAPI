@@ -40,7 +40,7 @@ func TestQueryEndpointIntegration(t *testing.T) {
 	storageClient := storage.NewMockClient()
 
 	authMiddleware := middleware.NewAuthMiddleware(secretsClient, storageClient)
-	handler := NewQueryHandler()
+	handler := NewQueryHandler(secretsClient)
 	server := httptest.NewServer(middleware.Logging(authMiddleware.APIKeyAuth(handler)))
 	defer server.Close()
 

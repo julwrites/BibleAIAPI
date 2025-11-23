@@ -47,7 +47,8 @@ func main() {
 	adminHandler := handlers.NewAdminHandler(storageClient, secretsClient)
 
 	// Register Routes
-	queryHandler := handlers.NewQueryHandler()
+	queryHandler := handlers.NewQueryHandler(secretsClient)
+
 	http.Handle("/query", middleware.Logging(authMiddleware.APIKeyAuth(queryHandler)))
 
 	// Admin Routes (Publicly accessible, internal auth via password)

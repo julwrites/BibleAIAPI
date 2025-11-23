@@ -6,7 +6,8 @@ import (
 	"errors"
 
 	"bible-api-service/internal/llm/provider"
-	"github.com/gofor-little/env"
+	"bible-api-service/internal/secrets"
+
 	"github.com/tmc/langchaingo/llms"
 	"github.com/tmc/langchaingo/llms/openai"
 )
@@ -19,15 +20,15 @@ func NewOpenAICustom(llm llms.Model) provider.LLMClient {
 	return &OpenAICustomClient{llm: llm}
 }
 
-func NewClient() (provider.LLMClient, error) {
-	apiKey, err := env.MustGet("OPENAI_CUSTOM_API_KEY")
+func NewClient(ctx context.Context, secretsClient secrets.Client) (provider.LLMClient, error) {
+	apiKey, err := secrets.Get(ctx, secretsClient, "OPENAI_CUSTOM_API_KEY")
 	if err != nil {
-		return nil, errors.New("OPENAI_CUSTOM_API_KEY environment variable not set")
+		return nil, errors.New("OPENAI_CUSTOM_API_KEY secret or environment variable not set")
 	}
 
-	baseURL, err := env.MustGet("OPENAI_CUSTOM_BASE_URL")
+	baseURL, err := secrets.Get(ctx, secretsClient, "OPENAI_CUSTOM_BASE_URL")
 	if err != nil {
-		return nil, errors.New("OPENAI_CUSTOM_BASE_URL environment variable not set")
+		return nil, errors.New("OPENAI_CUSTOM_BASE_URL secret or environment variable not set")
 	}
 
 	llm, err := openai.New(openai.WithToken(apiKey), openai.WithBaseURL(baseURL))
