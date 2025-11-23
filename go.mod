@@ -7,7 +7,6 @@ toolchain go1.24.10
 require (
 	cloud.google.com/go/secretmanager v1.14.7
 	github.com/PuerkitoBio/goquery v1.10.3
-	github.com/gofor-little/env v1.0.20
 	github.com/google/go-cmp v0.7.0
 	github.com/googleapis/gax-go/v2 v2.15.0
 	github.com/stretchr/testify v1.11.1
