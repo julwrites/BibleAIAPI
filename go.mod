@@ -5,6 +5,7 @@ go 1.24.8
 toolchain go1.24.10
 
 require (
+	cloud.google.com/go/firestore v1.20.0
 	cloud.google.com/go/secretmanager v1.14.7
 	github.com/PuerkitoBio/goquery v1.10.3
 	github.com/gofor-little/env v1.0.20
