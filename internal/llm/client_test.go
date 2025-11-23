@@ -130,7 +130,7 @@ func TestFallbackClient_Query(t *testing.T) {
 			name: "First client times out",
 			clients: []provider.LLMClient{
 				&mockLLMClient{queryFunc: func(ctx context.Context, prompt, schema string) (string, error) {
-					time.Sleep(2 * time.Second) // Longer than the test timeout
+					time.Sleep(10 * time.Millisecond)
 					return "", errors.New("should have timed out")
 				}},
 				&mockLLMClient{queryFunc: func(ctx context.Context, prompt, schema string) (string, error) {
