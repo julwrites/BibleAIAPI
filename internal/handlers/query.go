@@ -5,7 +5,9 @@ import (
 	"bible-api-service/internal/chat"
 	"bible-api-service/internal/llm"
 	"bible-api-service/internal/llm/provider"
+	"bible-api-service/internal/secrets"
 	"bible-api-service/internal/util"
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -21,10 +23,10 @@ type QueryHandler struct {
 }
 
 // NewQueryHandler creates a new QueryHandler with default clients.
-func NewQueryHandler() *QueryHandler {
+func NewQueryHandler(secretsClient secrets.Client) *QueryHandler {
 	bibleGatewayClient := biblegateway.NewScraper()
 	getLLMClient := func() (provider.LLMClient, error) {
-		return llm.NewFallbackClient()
+		return llm.NewFallbackClient(context.Background(), secretsClient)
 	}
 	return &QueryHandler{
 		BibleGatewayClient: bibleGatewayClient,
@@ -80,15 +82,14 @@ func (h *QueryHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// I will assume strict compliance.
 
 	if !hasPrompt {
-		// Check if Context is non-empty
+		// Check if Context (excluding User) is non-empty
 		hasContext := len(request.Context.History) > 0 ||
 			request.Context.Schema != "" ||
 			len(request.Context.Verses) > 0 ||
-			len(request.Context.Words) > 0 ||
-			request.Context.User.Version != ""
+			len(request.Context.Words) > 0
 
 		if hasContext {
-			util.JSONError(w, http.StatusBadRequest, "Context object is only valid with a prompt query")
+			util.JSONError(w, http.StatusBadRequest, "Context object (excluding user preferences) is only valid with a prompt query")
 			return
 		}
 	}

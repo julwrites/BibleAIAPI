@@ -42,7 +42,7 @@ func TestMain(t *testing.T) {
 	if err != nil {
 		t.Fatalf("could not read response body: %v", err)
 	}
-	if !strings.Contains(string(body), "Invalid API Key") {
-		t.Errorf("expected response body to contain 'Invalid API Key', but it didn't")
+	if !strings.Contains(string(body), "Missing API Key") {
+		t.Errorf("expected response body to contain 'Missing API Key', but it didn't")
 	}
 }

@@ -98,7 +98,7 @@ func (c *Client) SearchWords(ctx context.Context, words []string, version string
 // OpenQuery performs an open-ended query.
 func (c *Client) OpenQuery(ctx context.Context, question string, version string) (*OQueryResponse, error) {
 	req := QueryRequest{
-		Query:   Query{OQuery: question},
+		Query:   Query{Prompt: question},
 		Context: Context{User: User{Version: version}},
 	}
 	var resp OQueryResponse
@@ -110,11 +110,13 @@ func (c *Client) OpenQuery(ctx context.Context, question string, version string)
 func (c *Client) Chat(ctx context.Context, prompt, schema string, verses []string, version string) (map[string]interface{}, error) {
 	req := QueryRequest{
 		Query: Query{
-			ChatPrompt: prompt,
-			ChatSchema: schema,
-			Verses:     verses,
+			Prompt: prompt,
 		},
-		Context: Context{User: User{Version: version}},
+		Context: Context{
+			Schema: schema,
+			Verses: verses,
+			User:   User{Version: version},
+		},
 	}
 	var resp map[string]interface{}
 	err := c.Query(ctx, req, &resp)

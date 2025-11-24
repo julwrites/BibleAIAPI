@@ -137,11 +137,11 @@ curl -X POST https://your-service-url.run.app/query \
   -H "X-API-KEY: your-api-key" \
   -d '{
     "query": {
-      "chat_prompt": "Explain this verse",
-      "chat_schema": "{\"type\": \"object\", \"properties\": {\"explanation\": {\"type\": \"string\"}}}",
-      "verses": ["John 3:16"]
+      "prompt": "Explain this verse"
     },
     "context": {
+      "schema": "{\"type\": \"object\", \"properties\": {\"explanation\": {\"type\": \"string\"}}}",
+      "verses": ["John 3:16"],
       "user": {
         "version": "ESV"
       }

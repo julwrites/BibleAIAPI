@@ -7,19 +7,17 @@ type QueryRequest struct {
 }
 
 type Query struct {
-	Verses     []string `json:"verses,omitempty"`
-	Words      []string `json:"words,omitempty"`
-	OQuery     string   `json:"oquery,omitempty"`
-	ChatPrompt string   `json:"chat_prompt,omitempty"`
-	ChatSchema string   `json:"chat_schema,omitempty"`
+	Verses []string `json:"verses,omitempty"`
+	Words  []string `json:"words,omitempty"`
+	Prompt string   `json:"prompt,omitempty"`
 }
 
 type Context struct {
-	Instruction string   `json:"instruction,omitempty"`
-	PQuery      []string `json:"pquery,omitempty"`
-	Verses      []string `json:"verses,omitempty"`
-	Words       []string `json:"words,omitempty"`
-	User        User     `json:"user,omitempty"`
+	History []string `json:"history,omitempty"`
+	Schema  string   `json:"schema,omitempty"`
+	Verses  []string `json:"verses,omitempty"`
+	Words   []string `json:"words,omitempty"`
+	User    User     `json:"user,omitempty"`
 }
 
 type User struct {
@@ -39,6 +37,7 @@ type SearchResult struct {
 	URL   string `json:"url"`
 }
 
+// OQueryResponse matches the default schema for open queries.
 type OQueryResponse struct {
 	Text       string         `json:"text"`
 	References []SearchResult `json:"references"`

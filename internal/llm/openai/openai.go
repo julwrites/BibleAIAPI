@@ -6,7 +6,8 @@ import (
 	"errors"
 
 	"bible-api-service/internal/llm/provider"
-	"github.com/gofor-little/env"
+	"bible-api-service/internal/secrets"
+
 	"github.com/tmc/langchaingo/llms"
 	"github.com/tmc/langchaingo/llms/openai"
 )
@@ -19,10 +20,10 @@ func NewOpenAI(llm llms.Model) provider.LLMClient {
 	return &OpenAIClient{llm: llm}
 }
 
-func NewClient() (provider.LLMClient, error) {
-	apiKey, err := env.MustGet("OPENAI_API_KEY")
+func NewClient(ctx context.Context, secretsClient secrets.Client) (provider.LLMClient, error) {
+	apiKey, err := secrets.Get(ctx, secretsClient, "OPENAI_API_KEY")
 	if err != nil {
-		return nil, errors.New("OPENAI_API_KEY environment variable not set")
+		return nil, errors.New("OPENAI_API_KEY secret or environment variable not set")
 	}
 
 	llm, err := openai.New(openai.WithToken(apiKey))
