@@ -1,0 +1,35 @@
+meta {
+  name: Single Query
+  type: http
+  seq: 1
+}
+
+get {
+  url: http://localhost:8085/query
+  body: json
+  auth: inherit
+}
+
+headers {
+  X-API-Key: secretapikey
+  Content-Type: application/json
+}
+
+body:json {
+  {
+      "query": {
+          "prompt": "How many people did Jesus feed at the wedding of Cana?"
+      },
+      "context": {
+          "user": {
+              "version": "ESV"
+          }
+      }
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+

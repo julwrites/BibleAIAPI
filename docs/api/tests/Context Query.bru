@@ -1,0 +1,45 @@
+meta {
+  name: Context Query
+  type: http
+  seq: 1
+}
+
+get {
+  url: http://localhost:8085/query
+  body: json
+  auth: inherit
+}
+
+headers {
+  X-API-Key: secretapikey
+  Content-Type: application/json
+}
+
+body:json {
+  {
+      "query": {
+          "prompt": "Which of these verses are relevant to these themes?"
+      },
+      "context": {
+          "verses": [
+            "1 Corinthians 15:10",
+            "Ephesians 2:8-9",
+            "1 Timothy 1:14",
+            "Genesis 5:1"
+          ],
+          "words": [
+            "Grace"
+          ],
+          "user": {
+              "version": "ESV"
+          }
+      }
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
+
+
