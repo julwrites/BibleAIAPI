@@ -31,6 +31,11 @@ func New(client secretManagerClient, projectID string) Client {
 // to Google Secret Manager. If that fails, it falls back to reading secrets
 // from environment variables.
 func NewClient(ctx context.Context, projectID string) (Client, error) {
+	if projectID == "" {
+		log.Println("GCP_PROJECT_ID is not set; falling back to environment variables")
+		return &EnvClient{}, nil
+	}
+
 	c, err := secretmanager.NewClient(ctx)
 	if err != nil {
 		log.Printf("failed to create secret manager client, falling back to environment variables: %v", err)
