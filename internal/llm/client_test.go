@@ -28,9 +28,18 @@ func TestNewFallbackClient(t *testing.T) {
 
 	t.Run("LLM_PROVIDERS not set", func(t *testing.T) {
 		os.Unsetenv("LLM_PROVIDERS")
-		_, err := NewFallbackClient(context.Background(), secretsClient)
-		if err == nil {
-			t.Error("expected error when LLM_PROVIDERS is not set")
+		os.Setenv("DEEPSEEK_API_KEY", "dummy-key")
+		defer os.Unsetenv("DEEPSEEK_API_KEY")
+
+		client, err := NewFallbackClient(context.Background(), secretsClient)
+		if err != nil {
+			t.Errorf("unexpected error when LLM_PROVIDERS is not set: %v", err)
+		}
+		if client == nil {
+			t.Error("expected client to be initialized with default provider")
+		}
+		if len(client.clients) != 1 {
+			t.Errorf("expected 1 client (default), got %d", len(client.clients))
 		}
 	})
 

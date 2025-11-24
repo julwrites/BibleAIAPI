@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -24,7 +25,8 @@ type FallbackClient struct {
 func NewFallbackClient(ctx context.Context, secretsClient secrets.Client) (*FallbackClient, error) {
 	providerNames, err := secrets.Get(ctx, secretsClient, "LLM_PROVIDERS")
 	if err != nil {
-		return nil, errors.New("LLM_PROVIDERS secret or environment variable not set")
+		log.Printf("LLM_PROVIDERS secret or environment variable not set, defaulting to 'deepseek': %v", err)
+		providerNames = "deepseek"
 	}
 
 	providers := strings.Split(providerNames, ",")
