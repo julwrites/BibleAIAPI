@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -49,6 +50,24 @@ func TestNewFallbackClient(t *testing.T) {
 		_, err := NewFallbackClient(context.Background(), secretsClient)
 		if err == nil {
 			t.Error("expected error for unsupported provider")
+		}
+		if err.Error() != "no valid LLM clients could be created. Errors: " {
+			t.Errorf("unexpected error message: %v", err)
+		}
+	})
+
+	t.Run("All providers fail initialization", func(t *testing.T) {
+		os.Setenv("LLM_PROVIDERS", "openai")
+		// Not setting OPENAI_API_KEY should cause failure
+		defer os.Unsetenv("LLM_PROVIDERS")
+
+		_, err := NewFallbackClient(context.Background(), secretsClient)
+		if err == nil {
+			t.Error("expected error when all providers fail")
+		}
+		expectedPart := "openai: OPENAI_API_KEY secret or environment variable not set"
+		if err != nil && !strings.Contains(err.Error(), expectedPart) {
+			t.Errorf("expected error message to contain %q, got %q", expectedPart, err.Error())
 		}
 	})
 

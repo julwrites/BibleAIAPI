@@ -2,7 +2,6 @@ package llm
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"strings"
@@ -32,6 +31,8 @@ func NewFallbackClient(ctx context.Context, secretsClient secrets.Client) (*Fall
 	providers := strings.Split(providerNames, ",")
 	clients := make([]provider.LLMClient, 0, len(providers))
 
+	var configErrors []string
+
 	for _, p := range providers {
 		var client provider.LLMClient
 		var err error
@@ -52,11 +53,15 @@ func NewFallbackClient(ctx context.Context, secretsClient secrets.Client) (*Fall
 
 		if err == nil && client != nil {
 			clients = append(clients, client)
+		} else if err != nil {
+			configErrors = append(configErrors, fmt.Sprintf("%s: %v", p, err))
+		} else {
+			configErrors = append(configErrors, fmt.Sprintf("%s: failed to initialize client (unknown error)", p))
 		}
 	}
 
 	if len(clients) == 0 {
-		return nil, errors.New("no valid LLM clients could be created")
+		return nil, fmt.Errorf("no valid LLM clients could be created. Errors: %s", strings.Join(configErrors, "; "))
 	}
 
 	return &FallbackClient{clients: clients}, nil
