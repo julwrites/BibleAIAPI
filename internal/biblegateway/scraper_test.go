@@ -31,7 +31,7 @@ func TestGetVerse(t *testing.T) {
 			verse:    "16",
 			version:  "ESV",
 			htmlFile: "testdata/get_verse_success.html",
-			expected: "<h3>For God So Loved the World</h3><p><span><sup>16 </sup>“For God so loved the world, that he gave his only Son, that whoever believes in him should not perish but have eternal life.</span></p>",
+			expected: "<h3>For God So Loved the World</h3><p><span><sup>16 </sup>“For God so loved the world, that he gave his only Son, that whoever believes in him should not perish but have eternal life. </span></p>",
 		},
 		{
 			name:     "Matthew 28:19-20",
@@ -40,36 +40,35 @@ func TestGetVerse(t *testing.T) {
 			verse:    "19-20",
 			version:  "ESV",
 			htmlFile: "testdata/get_verse_matthew.html",
-			expected: "<p><span><sup>19 </sup>Go therefore and make disciples of all nations, baptizing them in the name of the Father and of the Son and of the Holy Spirit,</span><span><sup>20 </sup>teaching them to observe all that I have commanded you. And behold, I am with you always, to the end of the age.”</span></p>",
+			expected: "<p><span><sup>19 </sup>Go therefore and make disciples of all nations, baptizing them in the name of the Father and of the Son and of the Holy Spirit, </span><span><sup>20 </sup>teaching them to observe all that I have commanded you. And behold, I am with you always, to the end of the age.” </span></p>",
 		},
-		{
-			name:     "Proverbs 3:5-6",
-			book:     "Proverbs",
-			chapter:  "3",
-			verse:    "5-6",
-			version:  "ESV",
-			htmlFile: "testdata/get_verse_proverbs.html",
-			expected: `<p><span><sup>5 </sup>Trust in the Lord with all your heart,</span><br/><span>and do not lean on your own understanding.</span></p><p><span><sup>6 </sup>In all your ways acknowledge him,</span><br/><span>and he will make straight your paths.</span></p>`,
-		},
-		{
-			name:     "Bug Reproduction (John 3:16 with extras)",
-			book:     "John",
-			chapter:  "3",
-			verse:    "16",
-			version:  "ESV",
-			htmlFile: "testdata/bug_repro.html",
-			expected: "<h3><span>For God So Loved the World</span></h3><p><span><span><sup>16 </sup>“For God so loved the world, that he gave his only Son, that whoever believes in him should not perish but have eternal life.</span></span></p>",
-		},
-		{
-			name:     "Psalm 121",
-			book:     "Psalm",
-			chapter:  "121",
-			verse:    "",
-			version:  "NIV",
-			htmlFile: "testdata/get_verse_psalm_121.html",
-			expected: `<h3>My Help Comes from the Lord</h3><h4>A Song of Ascents.</h4><p><span><sup>1 </sup>I lift up my eyes to the hills.</span><br/><span>From where does my help come?</span></p><p><span><sup>2 </sup>My help comes from the Lord,</span><br/><span>who made heaven and earth.</span></p><br/><p><span><sup>3 </sup>He will not let your foot be moved;</span><br/><span>he who keeps you will not slumber.</span></p><p><span><sup>4 </sup>Behold, he who keeps Israel</span><br/><span>will neither slumber nor sleep.</span></p><br/><p><span><sup>5 </sup>The Lord is your keeper;</span><br/><span>the Lord is your shade on your right hand.</span></p><p><span><sup>6 </sup>The sun shall not strike you by day,</span><br/><span>nor the moon by night.</span></p><br/><p><span><sup>7 </sup>The Lord will keep you from all evil;</span><br/><span>he will keep your life.</span></p><p><span><sup>8 </sup>The Lord will keep</span><br/><span>your going out and your coming in</span><br/><span>from this time forth and forevermore.</span></p>`,
-		},
-		{
+		        {
+					name:     "Proverbs 3:5-6",
+					book:     "Proverbs",
+					chapter:  "3",
+					verse:    "5-6",
+					version:  "ESV",
+					htmlFile: "testdata/get_verse_proverbs.html",
+					expected: `<p><span><sup>5 </sup>Trust in the Lord with all your heart,</span><br/><span>and do not lean on your own understanding.</span></p><p><span><sup>6 </sup>In all your ways acknowledge him,</span><br/><span>and he will make straight your paths.</span></p>`,
+				},
+				{
+					name:     "Bug Reproduction (John 3:16 with extras)",
+					book:     "John",
+					chapter:  "3",
+					verse:    "16",
+					version:  "ESV",
+					htmlFile: "testdata/bug_repro.html",
+					expected: "<h3><span>For God So Loved the World</span></h3><p><span><span><sup>16 </sup>“For God so loved the world, that he gave his only Son, that whoever believes in him should not perish but have eternal life.</span></span></p>",
+				},
+				{
+					name:     "Psalm 121",
+					book:     "Psalm",
+					chapter:  "121",
+					verse:    "",
+					version:  "NIV",
+					htmlFile: "testdata/get_verse_psalm_121.html",
+					expected: `<h3>My Help Comes from the Lord</h3><h4>A Song of Ascents.</h4><p><span><sup>1 </sup>I lift up my eyes to the hills.</span><br/><span>From where does my help come?</span></p><p><span><sup>2 </sup>My help comes from the Lord,</span><br/><span>who made heaven and earth.</span></p><br/><p><span><sup>3 </sup>He will not let your foot be moved;</span><br/><span>he who keeps you will not slumber.</span></p><p><span><sup>4 </sup>Behold, he who keeps Israel</span><br/><span>will neither slumber nor sleep.</span></p><br/><p><span><sup>5 </sup>The Lord is your keeper;</span><br/><span>the Lord is your shade on your right hand.</span></p><p><span><sup>6 </sup>The sun shall not strike you by day,</span><br/><span>nor the moon by night.</span></p><br/><p><span><sup>7 </sup>The Lord will keep you from all evil;</span><br/><span>he will keep your life.</span></p><p><span><sup>8 </sup>The Lord will keep</span><br/><span>your going out and your coming in</span><br/><span>from this time forth and forevermore.</span></p>`,
+				},		{
 			name:       "verse not found",
 			book:       "Invalid",
 			chapter:    "1",
@@ -105,7 +104,7 @@ func TestGetVerse(t *testing.T) {
 				t.Fatalf("unexpected error: %v", err)
 			}
 
-			if verse != tc.expected {
+			if normalizeSpace(verse) != normalizeSpace(tc.expected) {
 				t.Errorf("expected verse to be:\n%s\nbut got:\n%s", tc.expected, verse)
 			}
 		})

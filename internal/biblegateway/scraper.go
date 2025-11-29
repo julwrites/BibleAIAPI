@@ -85,8 +85,10 @@ func unwrapSmallCaps(s *goquery.Selection) {
 	})
 }
 
-func removeAttributes(s *goquery.Selection) {
-	s.Find("*").RemoveAttr("class").RemoveAttr("id").RemoveAttr("style")
+func removeAllAttributes(s *goquery.Selection) {
+	s.Find("*").Each(func(_ int, sel *goquery.Selection) {
+		sel.Get(0).Attr = []html.Attribute{}
+	})
 }
 
 func removeEmptyParagraphs(s *goquery.Selection) {
@@ -97,62 +99,6 @@ func removeEmptyParagraphs(s *goquery.Selection) {
 	})
 }
 
-func scrapeProse(s *goquery.Selection) (string, error) {
-	removeUnwantedElements(s)
-	unwrapSmallCaps(s)
-	strictSanitize(s)
-	removeAttributes(s)
-	removeEmptyParagraphs(s)
-
-	html, err := s.Html()
-	if err != nil {
-		return "", err
-	}
-
-	html = strings.ReplaceAll(html, "\u00a0", " ")
-	html = strings.ReplaceAll(html, "\n", "")
-	html = strings.ReplaceAll(html, "\r", "")
-	html = strings.ReplaceAll(html, "<br/> ", "<br/>")
-	re := regexp.MustCompile(`>\s+<`)
-	html = re.ReplaceAllString(html, "><")
-	re = regexp.MustCompile(`\s+`)
-	html = re.ReplaceAllString(html, " ")
-	html = strings.ReplaceAll(html, " >", ">")
-	html = strings.ReplaceAll(html, " </span>", "</span>")
-	html = strings.ReplaceAll(html, " </p>", "</p>")
-	html = strings.ReplaceAll(html, " </h4>", "</h4>")
-	html = strings.ReplaceAll(html, " </h3>", "</h3>")
-
-	return html, nil
-}
-
-func scrapePoetry(s *goquery.Selection) (string, error) {
-	removeUnwantedElements(s)
-	unwrapSmallCaps(s)
-
-	s.Find("div.poetry.top-1 br").Remove()
-	s.Find("p.top-1").ReplaceWithHtml("<br/>")
-	s.Find("div.poetry, p.line, span.indent-1").Each(func(i int, sel *goquery.Selection) {
-		html, _ := sel.Html()
-		sel.ReplaceWithHtml(html)
-	})
-
-	strictSanitize(s)
-	removeAttributes(s)
-	removeEmptyParagraphs(s)
-
-	html, err := s.Html()
-	if err != nil {
-		return "", err
-	}
-
-	html = strings.ReplaceAll(html, "\u00a0", " ")
-	html = strings.ReplaceAll(html, "\n", "")
-	html = strings.ReplaceAll(html, "\r", "")
-	html = strings.ReplaceAll(html, "<br/> ", "<br/>")
-
-	return html, nil
-}
 
 // Scraper is a client for scraping the Bible Gateway website.
 type Scraper struct {
@@ -215,18 +161,30 @@ func (s *Scraper) GetVerse(book, chapter, verse, version string) (string, error)
 func sanitizeSelection(s *goquery.Selection) (string, error) {
 	isPoetry := s.Find("div.poetry").Length() > 0
 
-	var html string
-	var err error
+	removeUnwantedElements(s)
+	unwrapSmallCaps(s)
 
 	if isPoetry {
-		html, err = scrapePoetry(s)
-	} else {
-		html, err = scrapeProse(s)
+		s.Find("div.poetry.top-1 br").Remove()
+		s.Find("p.top-1").ReplaceWithHtml("<br/>")
+		s.Find("div.poetry, p.line, span.indent-1").Each(func(i int, sel *goquery.Selection) {
+			html, _ := sel.Html()
+			sel.ReplaceWithHtml(html)
+		})
 	}
 
+	strictSanitize(s)
+	removeAllAttributes(s)
+	removeEmptyParagraphs(s)
+
+	html, err := s.Html()
 	if err != nil {
 		return "", err
 	}
+
+	html = strings.ReplaceAll(html, "\u00a0", " ")
+	re := regexp.MustCompile(`>\s+<`)
+	html = re.ReplaceAllString(html, "><")
 
 	return strings.TrimSpace(html), nil
 }
