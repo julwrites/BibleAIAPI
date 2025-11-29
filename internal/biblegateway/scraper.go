@@ -90,6 +90,37 @@ func removeAllAttributes(s *goquery.Selection) {
 	})
 }
 
+func unwrapRedundantSpans(s *goquery.Selection) {
+	for {
+		unwrapped := false
+		s.Find("span").Each(func(i int, sel *goquery.Selection) {
+			isRedundant := true
+			sel.Contents().EachWithBreak(func(j int, content *goquery.Selection) bool {
+				if goquery.NodeName(content) == "#text" {
+					if strings.TrimSpace(content.Text()) != "" {
+						isRedundant = false
+						return false
+					}
+				} else if !content.Is("span") {
+					isRedundant = false
+					return false
+				}
+				return true
+			})
+
+			if isRedundant && sel.Children().Length() > 0 {
+				html, _ := sel.Html()
+				sel.ReplaceWithHtml(html)
+				unwrapped = true
+			}
+		})
+
+		if !unwrapped {
+			break
+		}
+	}
+}
+
 func removeEmptyParagraphs(s *goquery.Selection) {
 	s.Find("p").Each(func(i int, sel *goquery.Selection) {
 		if strings.TrimSpace(sel.Text()) == "" && sel.Find("br").Length() == 0 {
@@ -164,7 +195,6 @@ func sanitizeSelection(s *goquery.Selection) (string, error) {
 	unwrapSmallCaps(s)
 
 	if isPoetry {
-		s.Find("div.poetry.top-1 br").Remove()
 		s.Find("p.top-1").ReplaceWithHtml("<br/>")
 		s.Find("div.poetry, p.line, span.indent-1").Each(func(i int, sel *goquery.Selection) {
 			html, _ := sel.Html()
@@ -173,6 +203,7 @@ func sanitizeSelection(s *goquery.Selection) (string, error) {
 	}
 
 	strictSanitize(s)
+	unwrapRedundantSpans(s)
 	removeAllAttributes(s)
 	removeEmptyParagraphs(s)
 

@@ -58,7 +58,7 @@ func TestGetVerse(t *testing.T) {
 			verse:    "16",
 			version:  "ESV",
 			htmlFile: "testdata/bug_repro.html",
-			expected: `<h3><span>For God So Loved the World</span></h3> <p> <span> <span><sup>16 </sup>“For God so loved the world, that he gave his only Son, that whoever believes in him should not perish but have eternal life.</span> </span> </p>`,
+			expected: `<h3><span>For God So Loved the World</span></h3> <p> <span><sup>16 </sup>“For God so loved the world, that he gave his only Son, that whoever believes in him should not perish but have eternal life.</span> </p>`,
 		},
 		{
 			name:     "Psalm 121",
