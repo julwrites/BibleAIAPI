@@ -5,7 +5,6 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"regexp"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -183,8 +182,6 @@ func sanitizeSelection(s *goquery.Selection) (string, error) {
 	}
 
 	html = strings.ReplaceAll(html, "\u00a0", " ")
-	re := regexp.MustCompile(`>\s+<`)
-	html = re.ReplaceAllString(html, "><")
 
 	return strings.TrimSpace(html), nil
 }
