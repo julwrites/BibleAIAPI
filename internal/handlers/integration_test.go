@@ -3,7 +3,6 @@ package handlers
 import (
 	"bible-api-service/internal/middleware"
 	"bible-api-service/internal/secrets"
-	"bible-api-service/internal/storage"
 	"bytes"
 	"context"
 	"errors"
@@ -36,10 +35,8 @@ func TestQueryEndpointIntegration(t *testing.T) {
 			return "", errors.New("secret not found")
 		},
 	}
-	// Use Mock Storage Client
-	storageClient := storage.NewMockClient()
 
-	authMiddleware := middleware.NewAuthMiddleware(secretsClient, storageClient)
+	authMiddleware := middleware.NewAuthMiddleware(secretsClient)
 	handler := NewQueryHandler(secretsClient)
 	server := httptest.NewServer(middleware.Logging(authMiddleware.APIKeyAuth(handler)))
 	defer server.Close()
@@ -84,6 +81,7 @@ func TestQueryEndpointIntegration(t *testing.T) {
 		}
 		defer resp.Body.Close()
 
+		// Expecting 500 because we don't have real LLM credentials in integration test environment usually
 		if resp.StatusCode != http.StatusInternalServerError {
 			t.Errorf("expected status code %d, got %d", http.StatusInternalServerError, resp.StatusCode)
 		}
