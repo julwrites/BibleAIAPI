@@ -1,14 +1,14 @@
-# Task: Unit Tests for Bible Gateway Scraper
+---
+id: TESTING-001
+status: completed
+title: Unit Tests for Bible Gateway Scraper
+priority: high
+created: 2025-12-11 06:17:08
+category: unknown
+type: task
+---
 
-## Task Information
-- **Task ID**: TESTING-001
-- **Status**: completed
-- **Priority**: high
-- **Phase**: 2
-- **Estimated Effort**: 1 day
-- **Dependencies**: INFRASTRUCTURE-001
-
-## Task Details
+# Unit Tests for Bible Gateway Scraper
 
 ### Description
 This task involves writing unit tests for the Bible Gateway scraper located in `internal/biblegateway/scraper.go`. The tests should cover both the `GetVerse` and `SearchWords` functions and ensure that the HTML parsing logic is robust and correct.
@@ -24,8 +24,3 @@ This task involves writing unit tests for the Bible Gateway scraper located in `
 ### Implementation Notes
 - The `net/http/httptest` package can be used to create a mock HTTP server.
 - Sample HTML responses should be stored in a `testdata` directory within `internal/biblegateway`.
-
----
-
-*Created: 2025-11-14*
-*Status: pending*

@@ -1,16 +1,14 @@
-# Task: Initial Project Setup
+---
+id: FOUNDATION-001
+status: completed
+title: Initial Project Setup
+priority: critical
+created: 2025-12-11 06:17:08
+category: unknown
+type: task
+---
 
-## Task Information
-- **Task ID**: FOUNDATION-001
-- **Status**: completed
-- **Priority**: critical
-- **Phase**: 1
-- **Estimated Effort**: 1 day
-- **Actual Effort**: 1 day
-- **Completed**: 2025-11-14
-- **Dependencies**: None
-
-## Task Details
+# Initial Project Setup
 
 ### Description
 This task covers the initial setup of the Bible API service project. It includes scaffolding the directory structure, creating the initial documentation, initializing the Go module, and setting up the Docker containerization.
@@ -33,9 +31,3 @@ This task covers the initial setup of the Bible API service project. It includes
 - ✅ Created an OpenAPI 3.0 specification in `docs/api/openapi.yaml` to define the API contract.
 - ✅ Initialized the project as a Go module with `go mod init bible-api-service`.
 - ✅ Created a multi-stage `Dockerfile` for building a lightweight, optimized container image.
-
----
-
-*Created: 2025-11-14*
-*Last updated: 2025-11-14*
-*Status: completed - Initial project setup is complete.*

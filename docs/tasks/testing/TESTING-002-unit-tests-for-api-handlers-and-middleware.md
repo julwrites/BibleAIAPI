@@ -1,14 +1,14 @@
-# Task: Unit Tests for API Handlers and Middleware
+---
+id: TESTING-002
+status: completed
+title: Unit Tests for API Handlers and Middleware
+priority: high
+created: 2025-12-11 06:17:08
+category: unknown
+type: task
+---
 
-## Task Information
-- **Task ID**: TESTING-002
-- **Status**: completed
-- **Priority**: high
-- **Phase**: 2
-- **Estimated Effort**: 1 day
-- **Dependencies**: FEATURE-001
-
-## Task Details
+# Unit Tests for API Handlers and Middleware
 
 ### Description
 This task involves writing unit tests for the API handlers and middleware located in `internal/handlers/` and `internal/middleware/`. The tests should cover the core API logic, including request parsing, response formatting, and error handling.
@@ -21,8 +21,3 @@ This task involves writing unit tests for the API handlers and middleware locate
 - [x] Tests cover all logic paths in the handlers and middleware.
 - [x] Tests cover successful requests and various error conditions (e.g., invalid JSON, missing API key).
 - [x] All tests pass.
-
----
-
-*Created: 2025-11-14*
-*Status: pending*
