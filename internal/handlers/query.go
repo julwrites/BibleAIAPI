@@ -166,6 +166,7 @@ func (h *QueryHandler) handlePromptQuery(w http.ResponseWriter, r *http.Request,
 
 	result, err := h.ChatService.Process(r.Context(), chatReq)
 	if err != nil {
+		log.Printf("ChatService.Process failed: %v", err)
 		util.JSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -187,6 +188,7 @@ func (h *QueryHandler) handleVerseQuery(w http.ResponseWriter, r *http.Request, 
 		// Scraper handles empty version as default.
 		verse, err := h.BibleGatewayClient.GetVerse(book, chapter, verseNum, request.Context.User.Version)
 		if err != nil {
+			log.Printf("BibleGatewayClient.GetVerse failed for %s %s:%s: %v", book, chapter, verseNum, err)
 			util.JSONError(w, http.StatusInternalServerError, "Failed to get verse")
 			return
 		}

@@ -54,8 +54,10 @@ func NewFallbackClient(ctx context.Context, secretsClient secrets.Client) (*Fall
 		if err == nil && client != nil {
 			clients = append(clients, client)
 		} else if err != nil {
+			log.Printf("Failed to initialize provider '%s': %v", p, err)
 			configErrors = append(configErrors, fmt.Sprintf("%s: %v", p, err))
 		} else {
+			log.Printf("Failed to initialize provider '%s': unknown error", p)
 			configErrors = append(configErrors, fmt.Sprintf("%s: failed to initialize client (unknown error)", p))
 		}
 	}
@@ -79,6 +81,7 @@ func (c *FallbackClient) Query(ctx context.Context, prompt string, schema string
 		if err == nil {
 			return result, nil
 		}
+		log.Printf("Provider failed: %v", err)
 		lastErr = err
 	}
 
