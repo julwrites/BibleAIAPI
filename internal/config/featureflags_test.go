@@ -3,7 +3,53 @@ package config
 import (
 	"os"
 	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
 )
+
+func TestGetPollingInterval(t *testing.T) {
+	tests := []struct {
+		name     string
+		envVal   string
+		expected time.Duration
+	}{
+		{
+			name:     "Default value",
+			envVal:   "",
+			expected: 300 * time.Second,
+		},
+		{
+			name:     "Valid duration",
+			envVal:   "10m",
+			expected: 10 * time.Minute,
+		},
+		{
+			name:     "Invalid duration",
+			envVal:   "invalid",
+			expected: 300 * time.Second,
+		},
+		{
+			name:     "Short duration",
+			envVal:   "1s",
+			expected: 1 * time.Second,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.envVal != "" {
+				os.Setenv("FEATURE_FLAG_POLLING_INTERVAL", tt.envVal)
+			} else {
+				os.Unsetenv("FEATURE_FLAG_POLLING_INTERVAL")
+			}
+			// Ensure cleanup
+			defer os.Unsetenv("FEATURE_FLAG_POLLING_INTERVAL")
+
+			assert.Equal(t, tt.expected, getPollingInterval())
+		})
+	}
+}
 
 func TestInitFeatureFlags(t *testing.T) {
 	t.Run("Successful initialization", func(t *testing.T) {
