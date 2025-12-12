@@ -1,16 +1,14 @@
-# Task: Bible Gateway Scraper
+---
+id: INFRASTRUCTURE-001
+status: completed
+title: Bible Gateway Scraper
+priority: critical
+created: 2025-12-11 06:17:08
+category: unknown
+type: task
+---
 
-## Task Information
-- **Task ID**: INFRASTRUCTURE-001
-- **Status**: completed
-- **Priority**: critical
-- **Phase**: 1
-- **Estimated Effort**: 1 day
-- **Actual Effort**: 1 day
-- **Completed**: 2025-11-14
-- **Dependencies**: FOUNDATION-001
-
-## Task Details
+# Bible Gateway Scraper
 
 ### Description
 This task covers the implementation of the Bible Gateway scraper, which is responsible for fetching verse and word search results from `classic.biblegateway.com`.
@@ -29,9 +27,3 @@ This task covers the implementation of the Bible Gateway scraper, which is respo
 - ✅ Implemented the `SearchWords` function in `internal/biblegateway/scraper.go` to search for words and phrases.
 - ✅ Added the `goquery` dependency to `go.mod` for HTML parsing.
 - ✅ Integrated the scraper into the `handleDirectQuery` function in `internal/handlers/query.go`.
-
----
-
-*Created: 2025-11-14*
-*Last updated: 2025-11-14*
-*Status: completed - Bible Gateway scraper is implemented and integrated.*

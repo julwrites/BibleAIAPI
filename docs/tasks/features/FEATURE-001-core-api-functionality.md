@@ -1,16 +1,14 @@
-# Task: Core API Functionality
+---
+id: FEATURE-001
+status: completed
+title: Core API Functionality
+priority: critical
+created: 2025-12-11 06:17:08
+category: unknown
+type: task
+---
 
-## Task Information
-- **Task ID**: FEATURE-001
-- **Status**: completed
-- **Priority**: critical
-- **Phase**: 1
-- **Estimated Effort**: 1 day
-- **Actual Effort**: 1 day
-- **Completed**: 2025-11-14
-- **Dependencies**: FOUNDATION-001, INFRASTRUCTURE-001
-
-## Task Details
+# Core API Functionality
 
 ### Description
 This task covers the implementation of the core API functionality for the `/query` endpoint. This includes handling both direct queries (verse, word, and open-ended) and instruction-based queries.
@@ -35,9 +33,3 @@ This task covers the implementation of the core API functionality for the `/quer
 - ✅ Implemented the logic for handling instruction-based queries, including collating context, formatting the prompt, and calling the LLM client with a schema to enforce structured output.
 - ✅ Implemented and applied middleware for API key authentication (`internal/middleware/auth.go`) and logging (`internal/middleware/logging.go`).
 - ✅ Implemented a standardized JSON error response structure (`internal/util/error.go`).
-
----
-
-*Created: 2025-11-14*
-*Last updated: 2025-11-14*
-*Status: completed - Core API functionality is implemented.*
