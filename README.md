@@ -92,6 +92,15 @@ docker run -p 8080:8080 --env-file .env bible-api-service
 -   **Feature Flags**: Managed via `go-feature-flag`. The service retrieves flags from the [GitHub repository](https://github.com/julwrites/BibleAIAPI) by default, falling back to `configs/flags.yaml` locally.
 -   **Secrets**: The service attempts to fetch secrets from Google Secret Manager. If unavailable (e.g., local dev), it falls back to environment variables.
 
+## Task Documentation System
+
+This project uses a strict task documentation system. All work is tracked in `docs/tasks/`.
+-   **View Tasks**: Use `./scripts/tasks list`
+-   **Pick a Task**: Use `./scripts/tasks next`
+-   **Create Task**: Use `./scripts/tasks create`
+
+See [`AGENTS.md`](./AGENTS.md) and [`docs/tasks/GUIDE.md`](./docs/tasks/GUIDE.md) for details.
+
 ## Project Structure
 
 -   `cmd/server`: Main entry point.
@@ -99,4 +108,6 @@ docker run -p 8080:8080 --env-file .env bible-api-service
 -   `internal/llm`: LLM provider implementations.
 -   `internal/handlers`: Request routing and processing.
 -   `internal/secrets`: Secret management (GSM/Env).
--   `docs`: Architecture and deployment documentation.
+-   `docs`: Architecture, deployment, and task documentation.
+-   `docs/tasks`: The source of truth for all ongoing work and task history.
+-   `scripts`: Utility scripts, including the Task Manager (`scripts/tasks`).
