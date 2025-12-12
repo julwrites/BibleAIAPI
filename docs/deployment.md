@@ -12,7 +12,7 @@ This document describes how to deploy the Bible API Service to Google Cloud Run.
 
 1.  **Enable APIs:**
     ```bash
-    gcloud services enable artifactregistry.googleapis.com firestore.googleapis.com
+    gcloud services enable artifactregistry.googleapis.com
     ```
 
 2.  **Create a Docker repository (if not exists):**
@@ -33,31 +33,22 @@ This document describes how to deploy the Bible API Service to Google Cloud Run.
     docker push <gcp-region>-docker.pkg.dev/<gcp-project>/<repository-name>/bible-api-service
     ```
 
-## Database Setup (Required)
-
-This service uses Google Cloud Firestore for API key management and rate limiting.
-
-1.  **Create Firestore Database:**
-    Go to the Google Cloud Console -> Firestore.
-    Create a database in **Native Mode**.
-    Select a location (ideally the same region as your Cloud Run service).
-
-2.  **Permissions:**
-    Ensure the Cloud Run service account has the `Cloud Datastore User` role.
-
 ## Secret Manager Setup
 
 For security, sensitive keys are stored in Secret Manager.
 
 1.  **Create Secrets:**
     ```bash
-    # Legacy/Fallback API Key (Optional)
+    # API Key (Required for Auth Middleware)
     gcloud secrets create API_KEY --replication-policy="automatic"
-    echo -n "your-legacy-key" | gcloud secrets versions add API_KEY --data-file=-
+    echo -n "your-secret-api-key" | gcloud secrets versions add API_KEY --data-file=-
 
-    # Admin Password for Key Generation (Required)
-    gcloud secrets create ADMIN_PASSWORD --replication-policy="automatic"
-    echo -n "your-secure-admin-password" | gcloud secrets versions add ADMIN_PASSWORD --data-file=-
+    # LLM Provider Keys (As needed)
+    gcloud secrets create OPENAI_API_KEY --replication-policy="automatic"
+    echo -n "sk-..." | gcloud secrets versions add OPENAI_API_KEY --data-file=-
+
+    gcloud secrets create GEMINI_API_KEY --replication-policy="automatic"
+    echo -n "..." | gcloud secrets versions add GEMINI_API_KEY --data-file=-
     ```
 
 2.  **Grant Access to Cloud Run Service Account:**
@@ -81,16 +72,13 @@ gcloud run deploy bible-api-service \
     --set-env-vars="GCP_PROJECT_ID=<your-project-id>,LLM_PROVIDERS=openai,gemini,OPENAI_API_KEY=<your-openai-key>,GEMINI_API_KEY=<your-gemini-key>"
 ```
 
+*Note: The `--allow-unauthenticated` flag is used because the service implements its own API Key authentication via `X-API-KEY` header.*
+
 ## DDOS Protection & Rate Limiting
 
 ### Cloud Run Settings
 -   **`--max-instances`**: Caps the maximum number of container instances. Setting this to a reasonable limit (e.g., `10`) prevents cost explosions during a DDOS attack.
 -   **`--concurrency`**: Controls how many requests a single instance handles (default 80). Lowering this can improve isolation but increases instance count.
-
-### Application Rate Limiting
-The application uses Firestore to enforce daily rate limits per API Key.
--   **Pros**: Flexible, tracks usage per client, cheap for low/medium traffic.
--   **Costs**: Firestore charges ~$0.18 per 100k writes. Each API request = 1 read + 1 write.
 
 ### Advanced Protection: Google Cloud Armor
 For high-volume services or strict DDOS mitigation, consider **Google Cloud Armor**.
@@ -102,7 +90,9 @@ For high-volume services or strict DDOS mitigation, consider **Google Cloud Armo
 
 | Variable | Description | Required? |
 | :--- | :--- | :--- |
-| `GCP_PROJECT_ID` | Google Cloud Project ID (for Secrets/Firestore). | **Yes** |
-| `API_KEY` | Legacy secret key. | Optional |
-| `ADMIN_PASSWORD` | Password for `/admin` dashboard. | **Yes** (Secret) |
+| `GCP_PROJECT_ID` | Google Cloud Project ID (for Secrets). | **Yes** |
+| `API_KEY` | Secret key for auth (if not using Secret Manager). | Optional (Fallback) |
 | `LLM_PROVIDERS` | Comma-separated list of providers. | **Yes** |
+| `OPENAI_API_KEY` | API Key for OpenAI. | Optional (if using OpenAI) |
+| `GEMINI_API_KEY` | API Key for Gemini. | Optional (if using Gemini) |
+| `DEEPSEEK_API_KEY` | API Key for DeepSeek. | Optional (if using DeepSeek) |
