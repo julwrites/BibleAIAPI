@@ -58,7 +58,7 @@ func (c *DeepseekClient) Query(ctx context.Context, prompt string, schemaJSON st
 				Function: &toolSchema,
 			},
 		}),
-		llms.WithToolChoice("any"),
+		llms.WithToolChoice("required"),
 	)
 	if err != nil {
 		return "", err
