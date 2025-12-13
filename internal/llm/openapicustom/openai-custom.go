@@ -61,7 +61,7 @@ func (c *OpenAICustomClient) Query(ctx context.Context, prompt string, schemaJSO
 				Function: &toolSchema,
 			},
 		}),
-		llms.WithToolChoice("any"),
+		llms.WithToolChoice("required"),
 	)
 	if err != nil {
 		return "", err
