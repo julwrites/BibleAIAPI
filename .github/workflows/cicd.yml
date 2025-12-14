@@ -51,7 +51,7 @@ jobs:
       - name: Integration Test
         run: |
           export INTEGRATION_TESTS=true
-          export API_KEY=testkey
+          export API_KEYS='{"test":"testkey"}'
           export OPENAI_API_KEY=dummy
           go test -v ./... -run TestQueryEndpointIntegration
 
