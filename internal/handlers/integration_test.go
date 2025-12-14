@@ -27,10 +27,14 @@ func TestQueryEndpointIntegration(t *testing.T) {
 		t.Skip("skipping integration tests")
 	}
 
+	// Use a fixed key for testing
+	testKey := "integration-test-key"
+	apiKeysJSON := `{"integration-test": "` + testKey + `"}`
+
 	secretsClient := &mockSecretsClient{
 		getSecretFunc: func(ctx context.Context, name string) (string, error) {
-			if name == "API_KEY" {
-				return os.Getenv("API_KEY"), nil
+			if name == "API_KEYS" {
+				return apiKeysJSON, nil
 			}
 			return "", errors.New("secret not found")
 		},
@@ -48,7 +52,7 @@ func TestQueryEndpointIntegration(t *testing.T) {
 			}
 		}`
 		req, _ := http.NewRequest("POST", server.URL+"/query", bytes.NewBufferString(reqBody))
-		req.Header.Set("X-API-KEY", os.Getenv("API_KEY"))
+		req.Header.Set("X-API-KEY", testKey)
 
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
@@ -73,7 +77,7 @@ func TestQueryEndpointIntegration(t *testing.T) {
 			}
 		}`
 		req, _ := http.NewRequest("POST", server.URL+"/query", bytes.NewBufferString(reqBody))
-		req.Header.Set("X-API-KEY", os.Getenv("API_KEY"))
+		req.Header.Set("X-API-KEY", testKey)
 
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
@@ -94,7 +98,7 @@ func TestQueryEndpointIntegration(t *testing.T) {
 			}
 		}`
 		req, _ := http.NewRequest("POST", server.URL+"/query", bytes.NewBufferString(reqBody))
-		req.Header.Set("X-API-KEY", os.Getenv("API_KEY"))
+		req.Header.Set("X-API-KEY", testKey)
 
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {

@@ -17,9 +17,21 @@ go build -o bin/server cmd/server/main.go
 echo "Starting server in background..."
 # Use a random port or default 8080
 PORT=${PORT:-8080}
-# Check if API_KEY is set
-if [ -z "$API_KEY" ]; then
-    echo -e "${RED}Warning: API_KEY is not set. Authentication will be bypassed.${NC}"
+
+# Construct API_KEYS if not set, for local fallback
+if [ -z "$API_KEYS" ]; then
+    if [ -n "$API_KEY" ]; then
+        echo -e "${GREEN}Converting legacy API_KEY to API_KEYS JSON format for server...${NC}"
+        export API_KEYS="{\"local-test\": \"$API_KEY\"}"
+    else
+        echo -e "${RED}Warning: API_KEYS/API_KEY is not set. Authentication will be bypassed.${NC}"
+    fi
+fi
+
+# We use the API_KEY variable for the client request header.
+# If API_KEYS was provided but API_KEY wasn't, we need to extract one or warn.
+if [ -z "$API_KEY" ] && [ -n "$API_KEYS" ]; then
+    echo -e "${RED}Warning: API_KEYS is set but API_KEY (for curl) is not. Using 'ignored' key.${NC}"
 fi
 
 PORT=$PORT ./bin/server > server.log 2>&1 &
