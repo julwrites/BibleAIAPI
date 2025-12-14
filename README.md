@@ -31,7 +31,7 @@ For detailed API documentation, see the [OpenAPI specification](./docs/api/opena
 
 2.  **Set up Environment Variables:**
     Create a `.env` file or export these variables.
-    *   `API_KEY`: Arbitrary secret for local auth (e.g., `secret`).
+    *   `API_KEYS`: JSON string for local auth (e.g., `{"local": "secret"}`).
     *   `LLM_PROVIDERS`: Comma-separated list of providers to enable (e.g., `openai,gemini`).
     *   `OPENAI_API_KEY`: Required if using OpenAI.
     *   `GEMINI_API_KEY`: Required if using Gemini.
@@ -76,7 +76,7 @@ You can use the provided script to automatically build, run, and verify the API 
 
 This script will:
 1.  Build the server binary.
-2.  Start the server in the background.
+2.  Start the server in the background (configuring a dummy `API_KEYS` if needed).
 3.  Run `curl` requests for Verse lookup (Prose & Poetry) and Word search.
 4.  Skip LLM tests if relevant API keys (`OPENAI_API_KEY`, etc.) are not found in the environment.
 

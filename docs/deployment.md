@@ -39,9 +39,10 @@ For security, sensitive keys are stored in Secret Manager.
 
 1.  **Create Secrets:**
     ```bash
-    # API Key (Required for Auth Middleware)
-    gcloud secrets create API_KEY --replication-policy="automatic"
-    echo -n "your-secret-api-key" | gcloud secrets versions add API_KEY --data-file=-
+    # API Keys (Required for Auth Middleware)
+    # Stores a JSON mapping of ClientID to API Key
+    gcloud secrets create API_KEYS --replication-policy="automatic"
+    echo -n '{"telegram_bot": "secret-123", "web_portal": "secret-456"}' | gcloud secrets versions add API_KEYS --data-file=-
 
     # LLM Provider Keys (As needed)
     gcloud secrets create OPENAI_API_KEY --replication-policy="automatic"
@@ -91,7 +92,7 @@ For high-volume services or strict DDOS mitigation, consider **Google Cloud Armo
 | Variable | Description | Required? |
 | :--- | :--- | :--- |
 | `GCP_PROJECT_ID` | Google Cloud Project ID (for Secrets). | **Yes** |
-| `API_KEY` | Secret key for auth (if not using Secret Manager). | Optional (Fallback) |
+| `API_KEYS` | JSON string of client keys (if not using Secret Manager). | Optional (Fallback) |
 | `LLM_PROVIDERS` | Comma-separated list of providers. | **Yes** |
 | `OPENAI_API_KEY` | API Key for OpenAI. | Optional (if using OpenAI) |
 | `GEMINI_API_KEY` | API Key for Gemini. | Optional (if using Gemini) |
