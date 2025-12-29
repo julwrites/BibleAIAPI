@@ -88,7 +88,6 @@ Once the human approves the plan and comments:
 - **Memory Skill**: `.claude/skills/memory/`
 - **Tool Definitions**: `docs/interop/tool_definitions.json`
 
-
 ## Project Specific Instructions
 
 ## Overview
