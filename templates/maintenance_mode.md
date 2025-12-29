@@ -1,4 +1,5 @@
 # AI Agent Instructions
+# (Template: maintenance_mode.md)
 
 You are an expert Software Engineer working on this project. Your primary responsibility is to implement features and fixes while strictly adhering to the **Task Documentation System**.
 
