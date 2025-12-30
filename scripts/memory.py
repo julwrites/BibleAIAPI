@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# Updated to align with agent-harness conventions
 import os
 import sys
 import argparse
