@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"sort"
+	"reflect"
 	"strings"
 	"time"
 
@@ -24,15 +24,15 @@ type FallbackClient struct {
 }
 
 // parseLLMConfig parses the LLM configuration from environment variable or secret.
-// It returns a map of provider name to model name.
-func parseLLMConfig(ctx context.Context, secretsClient secrets.Client) (map[string]string, error) {
+// It returns a map of provider name to model name and a slice of provider names in the order they appear.
+func parseLLMConfig(ctx context.Context, secretsClient secrets.Client) (map[string]string, []string, error) {
 	configJSON, err := secrets.Get(ctx, secretsClient, "LLM_CONFIG")
 	if err != nil {
 		// Fall back to LLM_PROVIDERS for backward compatibility
 		providerNames, err := secrets.Get(ctx, secretsClient, "LLM_PROVIDERS")
 		if err != nil {
 			log.Printf("LLM_CONFIG and LLM_PROVIDERS not set, defaulting to {\"deepseek\":\"deepseek-chat\"}: %v", err)
-			return map[string]string{"deepseek": "deepseek-chat"}, nil
+			return map[string]string{"deepseek": "deepseek-chat"}, []string{"deepseek"}, nil
 		}
 		log.Printf("WARNING: LLM_PROVIDERS is deprecated, use LLM_CONFIG JSON instead")
 		// Convert comma-separated list to map with empty model names
@@ -41,34 +41,75 @@ func parseLLMConfig(ctx context.Context, secretsClient secrets.Client) (map[stri
 		for _, p := range providers {
 			config[p] = "" // Empty model name will use provider default
 		}
-		return config, nil
+		return config, providers, nil
 	}
 
-	var config map[string]string
-	if err := json.Unmarshal([]byte(configJSON), &config); err != nil {
-		return nil, fmt.Errorf("invalid LLM_CONFIG JSON: %w", err)
+	// Parse JSON while preserving key order
+	decoder := json.NewDecoder(strings.NewReader(configJSON))
+	decoder.UseNumber()
+
+	// Read opening brace
+	token, err := decoder.Token()
+	if err != nil {
+		return nil, nil, fmt.Errorf("invalid LLM_CONFIG JSON: %w", err)
 	}
-	return config, nil
+	if delim, ok := token.(json.Delim); !ok || delim != '{' {
+		return nil, nil, fmt.Errorf("invalid LLM_CONFIG JSON: expected object")
+	}
+
+	config := make(map[string]string)
+	var order []string
+
+	for decoder.More() {
+		// Read key
+		token, err := decoder.Token()
+		if err != nil {
+			return nil, nil, fmt.Errorf("invalid LLM_CONFIG JSON: %w", err)
+		}
+		key, ok := token.(string)
+		if !ok {
+			return nil, nil, fmt.Errorf("invalid LLM_CONFIG JSON: key must be string")
+		}
+
+		// Read value
+		token, err = decoder.Token()
+		if err != nil {
+			return nil, nil, fmt.Errorf("invalid LLM_CONFIG JSON: %w", err)
+		}
+		value, ok := token.(string)
+		if !ok {
+			return nil, nil, fmt.Errorf("invalid LLM_CONFIG JSON: value must be string for key %q", key)
+		}
+
+		config[key] = value
+		order = append(order, key)
+	}
+
+	// Read closing brace
+	token, err = decoder.Token()
+	if err != nil {
+		return nil, nil, fmt.Errorf("invalid LLM_CONFIG JSON: %w", err)
+	}
+	if delim, ok := token.(json.Delim); !ok || delim != '}' {
+		return nil, nil, fmt.Errorf("invalid LLM_CONFIG JSON: malformed object")
+	}
+
+	return config, order, nil
 }
 
 // NewFallbackClient creates a new FallbackClient with the providers specified in the LLM_CONFIG JSON or LLM_PROVIDERS environment variable/secret.
 func NewFallbackClient(ctx context.Context, secretsClient secrets.Client) (*FallbackClient, error) {
-	providerConfig, err := parseLLMConfig(ctx, secretsClient)
+	providerConfig, providerOrder, err := parseLLMConfig(ctx, secretsClient)
 	if err != nil {
 		return nil, err
 	}
 
-	// Get sorted provider names for deterministic order
-	providerNames := make([]string, 0, len(providerConfig))
-	for name := range providerConfig {
-		providerNames = append(providerNames, name)
-	}
-	sort.Strings(providerNames)
+	log.Printf("LLM provider order: %v", providerOrder)
 
 	clients := make([]provider.LLMClient, 0, len(providerConfig))
 	var configErrors []string
 
-	for _, providerName := range providerNames {
+	for _, providerName := range providerOrder {
 		modelName := providerConfig[providerName]
 		var client provider.LLMClient
 		var err error
@@ -90,6 +131,11 @@ func NewFallbackClient(ctx context.Context, secretsClient secrets.Client) (*Fall
 		}
 
 		if err == nil && client != nil {
+			if modelName != "" {
+				log.Printf("Successfully initialized provider '%s' with model '%s'", providerName, modelName)
+			} else {
+				log.Printf("Successfully initialized provider '%s' with default model", providerName)
+			}
 			clients = append(clients, client)
 		} else if err != nil {
 			log.Printf("Failed to initialize provider '%s': %v", providerName, err)
@@ -112,14 +158,18 @@ func (c *FallbackClient) Query(ctx context.Context, prompt string, schema string
 	var lastErr error
 
 	for _, client := range c.clients {
+		providerType := reflect.TypeOf(client).String()
+		log.Printf("Attempting LLM provider: %s", providerType)
+
 		ctxWithTimeout, cancel := context.WithTimeout(ctx, 1*time.Minute)
 
 		result, err := client.Query(ctxWithTimeout, prompt, schema)
 		cancel()
 		if err == nil {
+			log.Printf("Provider %s succeeded", providerType)
 			return result, nil
 		}
-		log.Printf("Provider failed: %v", err)
+		log.Printf("Provider %s failed: %v", providerType, err)
 		lastErr = err
 	}
 
