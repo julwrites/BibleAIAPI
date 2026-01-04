@@ -20,7 +20,7 @@ func NewOpenAICustom(llm llms.Model) provider.LLMClient {
 	return &OpenAICustomClient{llm: llm}
 }
 
-func NewClient(ctx context.Context, secretsClient secrets.Client) (provider.LLMClient, error) {
+func NewClient(ctx context.Context, secretsClient secrets.Client, model string) (provider.LLMClient, error) {
 	apiKey, err := secrets.Get(ctx, secretsClient, "OPENAI_CUSTOM_API_KEY")
 	if err != nil {
 		return nil, errors.New("OPENAI_CUSTOM_API_KEY secret or environment variable not set")
@@ -31,7 +31,13 @@ func NewClient(ctx context.Context, secretsClient secrets.Client) (provider.LLMC
 		return nil, errors.New("OPENAI_CUSTOM_BASE_URL secret or environment variable not set")
 	}
 
-	llm, err := openai.New(openai.WithToken(apiKey), openai.WithBaseURL(baseURL))
+	var opts []openai.Option
+	opts = append(opts, openai.WithToken(apiKey), openai.WithBaseURL(baseURL))
+	if model != "" {
+		opts = append(opts, openai.WithModel(model))
+	}
+
+	llm, err := openai.New(opts...)
 	if err != nil {
 		return nil, err
 	}

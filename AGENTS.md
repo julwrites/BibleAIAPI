@@ -100,8 +100,8 @@ The Bible API Service is a Go-based stateless microservice designed for serverle
 -   **Go**: Primary language (Go 1.24+).
 -   **Docker**: Multi-stage builds for optimized container images.
 -   **Scraping**: Uses `goquery` to scrape `classic.biblegateway.com`. Logic distinguishes between **Prose** and **Poetry** to preserve formatting.
--   **LLM Clients**: Modular architecture in `internal/llm`. Supports multiple providers (OpenAI, Gemini, DeepSeek, Custom).
-    -   **Fallback**: The `FallbackClient` (`internal/llm/client.go`) attempts providers in a priority list defined by `LLM_PROVIDERS` env var.
+-   **LLM Clients**: Modular architecture in `internal/llm`. Supports multiple providers (OpenAI, Gemini, DeepSeek, OpenRouter, custom OpenAI-compatible endpoints).
+    -   **Fallback**: The `FallbackClient` (`internal/llm/client.go`) attempts providers in order defined by `LLM_CONFIG` JSON (or deprecated `LLM_PROVIDERS` env var).
 -   **Feature Flags**: Managed via `go-feature-flag`.
     -   **Source**: Primarily loaded from the GitHub repository (`julwrites/BibleAIAPI`).
     -   **Fallback**: Falls back to a local file (`configs/flags.yaml`) if GitHub retrieval fails.

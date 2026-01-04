@@ -32,7 +32,7 @@ func TestNewClient(t *testing.T) {
 
 	t.Run("No API key", func(t *testing.T) {
 		os.Unsetenv("OPENAI_CUSTOM_API_KEY")
-		_, err := NewClient(context.Background(), secretsClient)
+		_, err := NewClient(context.Background(), secretsClient, "")
 		if err == nil {
 			t.Error("expected error when OPENAI_CUSTOM_API_KEY is not set")
 		}
@@ -42,7 +42,7 @@ func TestNewClient(t *testing.T) {
 		os.Setenv("OPENAI_CUSTOM_API_KEY", "test-key")
 		defer os.Unsetenv("OPENAI_CUSTOM_API_KEY")
 		os.Unsetenv("OPENAI_CUSTOM_BASE_URL")
-		_, err := NewClient(context.Background(), secretsClient)
+		_, err := NewClient(context.Background(), secretsClient, "")
 		if err == nil {
 			t.Error("expected error when OPENAI_CUSTOM_BASE_URL is not set")
 		}
@@ -51,7 +51,7 @@ func TestNewClient(t *testing.T) {
 	t.Run("API key and base URL set", func(t *testing.T) {
 		os.Setenv("OPENAI_CUSTOM_API_KEY", "test-key")
 		os.Setenv("OPENAI_CUSTOM_BASE_URL", "http://localhost")
-		client, err := NewClient(context.Background(), secretsClient)
+		client, err := NewClient(context.Background(), secretsClient, "")
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)
 		}

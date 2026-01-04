@@ -1,4 +1,4 @@
-package openai
+package openrouter
 
 import (
 	"context"
@@ -12,22 +12,24 @@ import (
 	"github.com/tmc/langchaingo/llms/openai"
 )
 
-type OpenAIClient struct {
+type OpenRouterClient struct {
 	llm llms.Model
 }
 
-func NewOpenAI(llm llms.Model) provider.LLMClient {
-	return &OpenAIClient{llm: llm}
+func NewOpenRouter(llm llms.Model) provider.LLMClient {
+	return &OpenRouterClient{llm: llm}
 }
 
 func NewClient(ctx context.Context, secretsClient secrets.Client, model string) (provider.LLMClient, error) {
-	apiKey, err := secrets.Get(ctx, secretsClient, "OPENAI_API_KEY")
+	apiKey, err := secrets.Get(ctx, secretsClient, "OPENROUTER_API_KEY")
 	if err != nil {
-		return nil, errors.New("OPENAI_API_KEY secret or environment variable not set")
+		return nil, errors.New("OPENROUTER_API_KEY secret or environment variable not set")
 	}
 
+	baseURL := "https://openrouter.ai/api/v1"
+
 	var opts []openai.Option
-	opts = append(opts, openai.WithToken(apiKey))
+	opts = append(opts, openai.WithToken(apiKey), openai.WithBaseURL(baseURL))
 	if model != "" {
 		opts = append(opts, openai.WithModel(model))
 	}
@@ -36,10 +38,10 @@ func NewClient(ctx context.Context, secretsClient secrets.Client, model string) 
 	if err != nil {
 		return nil, err
 	}
-	return NewOpenAI(llm), nil
+	return NewOpenRouter(llm), nil
 }
 
-func (c *OpenAIClient) Query(ctx context.Context, prompt string, schemaJSON string) (string, error) {
+func (c *OpenRouterClient) Query(ctx context.Context, prompt string, schemaJSON string) (string, error) {
 	var toolSchema llms.FunctionDefinition
 	if err := json.Unmarshal([]byte(schemaJSON), &toolSchema); err != nil {
 		return "", err
