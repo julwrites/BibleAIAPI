@@ -9,8 +9,6 @@ import (
 	"bible-api-service/internal/biblegateway"
 	"bible-api-service/internal/llm/provider"
 	"bible-api-service/internal/util"
-
-	"github.com/PuerkitoBio/goquery"
 )
 
 // BibleGatewayClient defines the interface for the Bible Gateway client.
@@ -63,12 +61,8 @@ func (s *ChatService) Process(ctx context.Context, req Request) (Response, error
 			return nil, fmt.Errorf("failed to get verse %s: %w", verseRef, err)
 		}
 
-		// 2. Remove all tags, keeping only the text content
-		plainText, err := stripHTML(verseHTML)
-		if err != nil {
-			return nil, fmt.Errorf("failed to strip html from verse %s: %w", verseRef, err)
-		}
-		verseTexts = append(verseTexts, fmt.Sprintf("%s: %s", verseRef, plainText))
+		// 2. Keep the verse HTML content to preserve structure/poetry
+		verseTexts = append(verseTexts, fmt.Sprintf("%s: %s", verseRef, verseHTML))
 	}
 
 	// 3. Search for words and add to context
@@ -97,6 +91,9 @@ func (s *ChatService) Process(ctx context.Context, req Request) (Response, error
 		promptBuilder.WriteString(strings.Join(searchResults, "\n\n"))
 	}
 
+	// Append instruction to return semantic HTML
+	promptBuilder.WriteString("\n\nPlease format your response using semantic HTML.")
+
 	llmPrompt := promptBuilder.String()
 
 	// 5. Refer to the system prompt specified by the request, and send this
@@ -118,13 +115,4 @@ func (s *ChatService) Process(ctx context.Context, req Request) (Response, error
 	}
 
 	return result, nil
-}
-
-// stripHTML removes HTML tags from a string, returning only the text content.
-func stripHTML(html string) (string, error) {
-	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
-	if err != nil {
-		return "", err
-	}
-	return doc.Text(), nil
 }

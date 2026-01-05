@@ -124,7 +124,7 @@ func (h *QueryHandler) handlePromptQuery(w http.ResponseWriter, r *http.Request,
 				"properties": {
 					"text": {
 						"type": "string",
-						"description": "The text response to the query."
+						"description": "The response to the query in semantic HTML format."
 					},
 					"references": {
 						"type": "array",
