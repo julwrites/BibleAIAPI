@@ -57,8 +57,16 @@ func TestChatService_Process_Success(t *testing.T) {
 		Schema:    `{"type": "object", "properties": {"explanation": {"type": "string"}}}`,
 	}
 
-	mockBgClient.On("GetVerse", "John", "3", "16", "NIV").Return("<h1>John 3:16</h1><p>For God so loved the world...</p>", nil)
-	mockLLMClient.On("Query", mock.Anything, "Explain this verse.\n\nBible Verses:\nJohn 3:16: John 3:16For God so loved the world...", req.Schema).Return(`{"explanation": "It means God loves everyone."}`, nil)
+	verseHTML := "<h1>John 3:16</h1><p>For God so loved the world...</p>"
+	mockBgClient.On("GetVerse", "John", "3", "16", "NIV").Return(verseHTML, nil)
+
+	// Expect the prompt to contain the original HTML and the new instruction
+	expectedPromptPart := "John 3:16: <h1>John 3:16</h1><p>For God so loved the world...</p>"
+	expectedInstruction := "Please format your response using semantic HTML."
+
+	mockLLMClient.On("Query", mock.Anything, mock.MatchedBy(func(prompt string) bool {
+		return strings.Contains(prompt, expectedPromptPart) && strings.Contains(prompt, expectedInstruction)
+	}), req.Schema).Return(`{"explanation": "It means God loves everyone."}`, nil)
 
 	resp, err := chatService.Process(context.Background(), req)
 
@@ -99,14 +107,16 @@ func TestChatService_Process_VersesAndWords(t *testing.T) {
 	mockBgClient.On("SearchWords", "Grace", "ESV").Return(searchResults, nil)
 
 	// Mock LLM Query
-	// The prompt should contain both verses and search results
-	expectedPromptPart1 := "Bible Verses:\n1 Corinthians 15:10: But by the grace of God I am what I am...\n\nGenesis 5:1: This is the book of the generations of Adam..."
+	// The prompt should contain both verses (with HTML) and search results
+	expectedPromptPart1 := "Bible Verses:\n1 Corinthians 15:10: <p>But by the grace of God I am what I am...</p>\n\nGenesis 5:1: <p>This is the book of the generations of Adam...</p>"
 	expectedPromptPart2 := "Relevant Search Results:\nEphesians 2:8: For by grace you have been saved..."
+	expectedInstruction := "Please format your response using semantic HTML."
 
 	mockLLMClient.On("Query", mock.Anything, mock.MatchedBy(func(prompt string) bool {
 		return strings.Contains(prompt, req.Prompt) &&
 			strings.Contains(prompt, expectedPromptPart1) &&
-			strings.Contains(prompt, expectedPromptPart2)
+			strings.Contains(prompt, expectedPromptPart2) &&
+			strings.Contains(prompt, expectedInstruction)
 	}), req.Schema).Return(`{"response": "Both are relevant."}`, nil)
 
 	resp, err := chatService.Process(context.Background(), req)
@@ -141,7 +151,13 @@ func TestChatService_Process_WithWords(t *testing.T) {
 	}
 
 	mockBgClient.On("SearchWords", "Grace", "NIV").Return(searchResults, nil)
-	mockLLMClient.On("Query", mock.Anything, "Summarize these search results.\n\nRelevant Search Results:\nEphesians 2:8: For it is by grace you have been saved...", req.Schema).Return(`{"summary": "Grace saves."}`, nil)
+
+	expectedPromptPart := "Summarize these search results.\n\nRelevant Search Results:\nEphesians 2:8: For it is by grace you have been saved..."
+	expectedInstruction := "Please format your response using semantic HTML."
+
+	mockLLMClient.On("Query", mock.Anything, mock.MatchedBy(func(prompt string) bool {
+		return strings.Contains(prompt, expectedPromptPart) && strings.Contains(prompt, expectedInstruction)
+	}), req.Schema).Return(`{"summary": "Grace saves."}`, nil)
 
 	resp, err := chatService.Process(context.Background(), req)
 
@@ -170,8 +186,15 @@ func TestChatService_Process_BookWithSpace(t *testing.T) {
 		Schema:    `{"type": "object", "properties": {"explanation": {"type": "string"}}}`,
 	}
 
-	mockBgClient.On("GetVerse", "1 John", "3", "16", "NIV").Return("<h1>1 John 3:16</h1><p>This is how we know what love is...</p>", nil)
-	mockLLMClient.On("Query", mock.Anything, "Explain this verse.\n\nBible Verses:\n1 John 3:16: 1 John 3:16This is how we know what love is...", req.Schema).Return(`{"explanation": "It is about sacrificial love."}`, nil)
+	verseHTML := "<h1>1 John 3:16</h1><p>This is how we know what love is...</p>"
+	mockBgClient.On("GetVerse", "1 John", "3", "16", "NIV").Return(verseHTML, nil)
+
+	expectedPromptPart := "1 John 3:16: <h1>1 John 3:16</h1><p>This is how we know what love is...</p>"
+	expectedInstruction := "Please format your response using semantic HTML."
+
+	mockLLMClient.On("Query", mock.Anything, mock.MatchedBy(func(prompt string) bool {
+		return strings.Contains(prompt, expectedPromptPart) && strings.Contains(prompt, expectedInstruction)
+	}), req.Schema).Return(`{"explanation": "It is about sacrificial love."}`, nil)
 
 	resp, err := chatService.Process(context.Background(), req)
 
