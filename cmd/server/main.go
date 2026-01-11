@@ -34,7 +34,12 @@ func main() {
 
 	// Register Routes
 	queryHandler := handlers.NewQueryHandler(secretsClient)
-	versionsHandler, err := handlers.NewVersionsHandler("configs/versions.yaml")
+
+	versionsConfigPath := os.Getenv("VERSIONS_CONFIG_PATH")
+	if versionsConfigPath == "" {
+		versionsConfigPath = "configs/versions.yaml"
+	}
+	versionsHandler, err := handlers.NewVersionsHandler(versionsConfigPath)
 	if err != nil {
 		log.Fatalf("could not initialize versions handler: %v", err)
 	}
