@@ -7,6 +7,62 @@ servers:
   - url: http://localhost:8080
     description: Local development server
 paths:
+  /bible-versions:
+    get:
+      summary: List available Bible versions
+      description: Retrieve a list of available Bible versions with filtering, sorting, and pagination.
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number for pagination.
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+          description: Number of items per page.
+        - in: query
+          name: name
+          schema:
+            type: string
+          description: Filter versions by name (case-insensitive partial match).
+        - in: query
+          name: language
+          schema:
+            type: string
+          description: Filter versions by language (case-insensitive partial match).
+        - in: query
+          name: sort
+          schema:
+            type: string
+            enum: [code, name, language]
+            default: code
+          description: Field to sort by.
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionsResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /query:
     post:
       summary: Submit a query
@@ -111,6 +167,36 @@ components:
                 version:
                   type: string
                   example: "ESV"
+
+    VersionsResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Version'
+        total:
+          type: integer
+          example: 233
+        page:
+          type: integer
+          example: 1
+        limit:
+          type: integer
+          example: 20
+
+    Version:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "New International Version (NIV)"
+        value:
+          type: string
+          example: "NIV"
+        language:
+          type: string
+          example: "English (EN)"
 
     VerseResponse:
       type: object
