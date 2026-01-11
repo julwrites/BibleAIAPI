@@ -34,8 +34,14 @@ func main() {
 
 	// Register Routes
 	queryHandler := handlers.NewQueryHandler(secretsClient)
+	versionsHandler, err := handlers.NewVersionsHandler("configs/versions.yaml")
+	if err != nil {
+		log.Fatalf("could not initialize versions handler: %v", err)
+	}
 
 	http.Handle("/query", middleware.Logging(authMiddleware.APIKeyAuth(queryHandler)))
+	// Apply auth middleware to maintain security consistency
+	http.Handle("/bible-versions", middleware.Logging(authMiddleware.APIKeyAuth(versionsHandler)))
 
 	log.Printf("Server starting on port %s\n", port)
 	if err := http.ListenAndServe(":"+port, nil); err != nil {

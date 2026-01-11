@@ -1,0 +1,699 @@
+- name: Amuzgo de Guerrero (AMU)
+  value: AMU
+  language: Amuzgo de Guerrero (AMU)
+- name: 'Arabic Bible: Easy-to-Read Version (ERV-AR)'
+  value: ERV-AR
+  language: العربية (AR)
+- name: Ketab El Hayat (NAV)
+  value: NAV
+  language: العربية (AR)
+- name: 'Awadhi Bible: Easy-to-Read Version (ERV-AWA)'
+  value: ERV-AWA
+  language: अवधी (AWA)
+- name: 1940 Bulgarian Bible (BG1940)
+  value: BG1940
+  language: Български (BG)
+- name: Bulgarian Bible (BULG)
+  value: BULG
+  language: Български (BG)
+- name: 'Bulgarian New Testament: Easy-to-Read Version (ERV-BG)'
+  value: ERV-BG
+  language: Български (BG)
+- name: Библия, нов превод от оригиналните езици (с неканоничните книги) (CBT)
+  value: CBT
+  language: Български (BG)
+- name: Библия, синодално издание (BOB)
+  value: BOB
+  language: Български (BG)
+- name: Библия, ревизирано издание (BPB)
+  value: BPB
+  language: Български (BG)
+- name: 'Bengali: পবিত্র বাইবেল (BERV)'
+  value: BERV
+  language: বাংলা (BN)
+- name: Chinanteco de Comaltepec (CCO)
+  value: CCO
+  language: Chinanteco de Comaltepec (CCO)
+- name: Ang Pulong Sa Dios (APSD-CEB)
+  value: APSD-CEB
+  language: Cebuano (CEB)
+- name: Cherokee New Testament (CHR)
+  value: CHR
+  language: ᏣᎳᎩ ᎦᏬᏂᎯᏍ (CHR)
+- name: Kurdi Sorani Standard (KSS)
+  value: KSS
+  language: كوردی سۆرانی (CKB)
+- name: Cakchiquel Occidental (CKW)
+  value: CKW
+  language: Cakchiquel Occidental (CKW)
+- name: Bible 21 (B21)
+  value: B21
+  language: Čeština (CS)
+- name: Slovo na cestu (SNC)
+  value: SNC
+  language: Čeština (CS)
+- name: Beibl William Morgan (BWM)
+  value: BWM
+  language: Cymraeg (CY)
+- name: Bibelen på hverdagsdansk (BPH)
+  value: BPH
+  language: Dansk (DA)
+- name: Dette er Biblen på dansk (DN1933)
+  value: DN1933
+  language: Dansk (DA)
+- name: Hoffnung für Alle (HOF)
+  value: HOF
+  language: Deutsch (DE)
+- name: Luther Bibel 1545 (LUTH1545)
+  value: LUTH1545
+  language: Deutsch (DE)
+- name: Neue Genfer Übersetzung (NGU-DE)
+  value: NGU-DE
+  language: Deutsch (DE)
+- name: Schlachter 1951 (SCH1951)
+  value: SCH1951
+  language: Deutsch (DE)
+- name: Schlachter 2000 (SCH2000)
+  value: SCH2000
+  language: Deutsch (DE)
+- name: 21st Century King James Version (KJ21)
+  value: KJ21
+  language: English (EN)
+- name: American Standard Version (ASV)
+  value: ASV
+  language: English (EN)
+- name: Amplified Bible (AMP)
+  value: AMP
+  language: English (EN)
+- name: Amplified Bible, Classic Edition (AMPC)
+  value: AMPC
+  language: English (EN)
+- name: BRG Bible (BRG)
+  value: BRG
+  language: English (EN)
+- name: Christian Standard Bible (CSB)
+  value: CSB
+  language: English (EN)
+- name: Christian Standard Bible Anglicised (CSBA)
+  value: CSBA
+  language: English (EN)
+- name: Common English Bible (CEB)
+  value: CEB
+  language: English (EN)
+- name: Complete Jewish Bible (CJB)
+  value: CJB
+  language: English (EN)
+- name: Contemporary English Version (CEV)
+  value: CEV
+  language: English (EN)
+- name: Darby Translation (DARBY)
+  value: DARBY
+  language: English (EN)
+- name: Disciples’ Literal New Testament (DLNT)
+  value: DLNT
+  language: English (EN)
+- name: Douay-Rheims 1899 American Edition (DRA)
+  value: DRA
+  language: English (EN)
+- name: Easy-to-Read Version (ERV)
+  value: ERV
+  language: English (EN)
+- name: EasyEnglish Bible (EASY)
+  value: EASY
+  language: English (EN)
+- name: Evangelical Heritage Version (EHV)
+  value: EHV
+  language: English (EN)
+- name: English Standard Version (ESV)
+  value: ESV
+  language: English (EN)
+- name: English Standard Version Anglicised (ESVUK)
+  value: ESVUK
+  language: English (EN)
+- name: Expanded Bible (EXB)
+  value: EXB
+  language: English (EN)
+- name: 1599 Geneva Bible (GNV)
+  value: GNV
+  language: English (EN)
+- name: GOD’S WORD Translation (GW)
+  value: GW
+  language: English (EN)
+- name: Good News Translation (GNT)
+  value: GNT
+  language: English (EN)
+- name: Holman Christian Standard Bible (HCSB)
+  value: HCSB
+  language: English (EN)
+- name: International Children’s Bible (ICB)
+  value: ICB
+  language: English (EN)
+- name: International Standard Version (ISV)
+  value: ISV
+  language: English (EN)
+- name: J.B. Phillips New Testament (PHILLIPS)
+  value: PHILLIPS
+  language: English (EN)
+- name: Jubilee Bible 2000 (JUB)
+  value: JUB
+  language: English (EN)
+- name: King James Version (KJV)
+  value: KJV
+  language: English (EN)
+- name: Authorized (King James) Version (AKJV)
+  value: AKJV
+  language: English (EN)
+- name: Legacy Standard Bible (LSB)
+  value: LSB
+  language: English (EN)
+- name: Lexham English Bible (LEB)
+  value: LEB
+  language: English (EN)
+- name: Living Bible (TLB)
+  value: TLB
+  language: English (EN)
+- name: The Message (MSG)
+  value: MSG
+  language: English (EN)
+- name: Modern English Version (MEV)
+  value: MEV
+  language: English (EN)
+- name: Mounce Reverse Interlinear New Testament (MOUNCE)
+  value: MOUNCE
+  language: English (EN)
+- name: Names of God Bible (NOG)
+  value: NOG
+  language: English (EN)
+- name: New American Bible (Revised Edition) (NABRE)
+  value: NABRE
+  language: English (EN)
+- name: New American Standard Bible (NASB)
+  value: NASB
+  language: English (EN)
+- name: New American Standard Bible 1995 (NASB1995)
+  value: NASB1995
+  language: English (EN)
+- name: New Catholic Bible (NCB)
+  value: NCB
+  language: English (EN)
+- name: New Century Version (NCV)
+  value: NCV
+  language: English (EN)
+- name: New English Translation (NET)
+  value: NET
+  language: English (EN)
+- name: New International Reader's Version (NIRV)
+  value: NIRV
+  language: English (EN)
+- name: New International Version (NIV)
+  value: NIV
+  language: English (EN)
+- name: New International Version - UK (NIVUK)
+  value: NIVUK
+  language: English (EN)
+- name: New King James Version (NKJV)
+  value: NKJV
+  language: English (EN)
+- name: New Life Version (NLV)
+  value: NLV
+  language: English (EN)
+- name: New Living Translation (NLT)
+  value: NLT
+  language: English (EN)
+- name: New Matthew Bible (NMB)
+  value: NMB
+  language: English (EN)
+- name: New Revised Standard Version, Anglicised (NRSVA)
+  value: NRSVA
+  language: English (EN)
+- name: New Revised Standard Version, Anglicised Catholic Edition (NRSVACE)
+  value: NRSVACE
+  language: English (EN)
+- name: New Revised Standard Version Catholic Edition (NRSVCE)
+  value: NRSVCE
+  language: English (EN)
+- name: New Revised Standard Version Updated Edition (NRSVUE)
+  value: NRSVUE
+  language: English (EN)
+- name: New Testament for Everyone (NTFE)
+  value: NTFE
+  language: English (EN)
+- name: Orthodox Jewish Bible (OJB)
+  value: OJB
+  language: English (EN)
+- name: Revised Geneva Translation (RGT)
+  value: RGT
+  language: English (EN)
+- name: Revised Standard Version (RSV)
+  value: RSV
+  language: English (EN)
+- name: Revised Standard Version Catholic Edition (RSVCE)
+  value: RSVCE
+  language: English (EN)
+- name: Tree of Life Version (TLV)
+  value: TLV
+  language: English (EN)
+- name: The Voice (VOICE)
+  value: VOICE
+  language: English (EN)
+- name: World English Bible (WEB)
+  value: WEB
+  language: English (EN)
+- name: Worldwide English (New Testament) (WE)
+  value: WE
+  language: English (EN)
+- name: Wycliffe Bible (WYC)
+  value: WYC
+  language: English (EN)
+- name: Young's Literal Translation (YLT)
+  value: YLT
+  language: English (EN)
+- name: La Biblia de las Américas (LBLA)
+  value: LBLA
+  language: Español (ES)
+- name: Biblia del Jubileo (JBS)
+  value: JBS
+  language: Español (ES)
+- name: Dios Habla Hoy (DHH)
+  value: DHH
+  language: Español (ES)
+- name: Nueva Biblia de las Américas (NBLA)
+  value: NBLA
+  language: Español (ES)
+- name: Nueva Biblia Viva (NBV)
+  value: NBV
+  language: Español (ES)
+- name: Nueva Traducción Viviente (NTV)
+  value: NTV
+  language: Español (ES)
+- name: Nueva Versión Internacional (NVI)
+  value: NVI
+  language: Español (ES)
+- name: Nueva Versión Internacional (Castilian) (CST)
+  value: CST
+  language: Español (ES)
+- name: Palabra de Dios para Todos (PDT)
+  value: PDT
+  language: Español (ES)
+- name: La Palabra (España) (BLP)
+  value: BLP
+  language: Español (ES)
+- name: La Palabra (Hispanoamérica) (BLPH)
+  value: BLPH
+  language: Español (ES)
+- name: Reina Valera Actualizada (RVA-2015)
+  value: RVA-2015
+  language: Español (ES)
+- name: Reina Valera Contemporánea (RVC)
+  value: RVC
+  language: Español (ES)
+- name: Reina-Valera 1960 (RVR1960)
+  value: RVR1960
+  language: Español (ES)
+- name: Reina Valera Revisada (RVR1977)
+  value: RVR1977
+  language: Español (ES)
+- name: Reina-Valera 1995 (RVR1995)
+  value: RVR1995
+  language: Español (ES)
+- name: Reina-Valera Antigua (RVA)
+  value: RVA
+  language: Español (ES)
+- name: Spanish Blue Red and Gold Letter Edition (SRV-BRG)
+  value: SRV-BRG
+  language: Español (ES)
+- name: Traducción en lenguaje actual (TLA)
+  value: TLA
+  language: Español (ES)
+- name: Raamattu 1933/38 (R1933)
+  value: R1933
+  language: Suomi (FI)
+- name: La Bible du Semeur (BDS)
+  value: BDS
+  language: Français (FR)
+- name: Louis Segond (LSG)
+  value: LSG
+  language: Français (FR)
+- name: Nouvelle Edition de Genève – NEG1979 (NEG1979)
+  value: NEG1979
+  language: Français (FR)
+- name: Segond 21 (SG21)
+  value: SG21
+  language: Français (FR)
+- name: 1550 Stephanus New Testament (TR1550)
+  value: TR1550
+  language: Κοινη (GRC)
+- name: 1881 Westcott-Hort New Testament (WHNU)
+  value: WHNU
+  language: Κοινη (GRC)
+- name: 1894 Scrivener New Testament (TR1894)
+  value: TR1894
+  language: Κοινη (GRC)
+- name: SBL Greek New Testament (SBLGNT)
+  value: SBLGNT
+  language: Κοινη (GRC)
+- name: Tyndale House Greek New Testament (THGNT)
+  value: THGNT
+  language: Κοινη (GRC)
+- name: 'Gujarati: પવિત્ર બાઈબલ (GERV)'
+  value: GERV
+  language: ગુજરાતી (GU)
+- name: Habrit Hakhadasha/Haderekh (HHH)
+  value: HHH
+  language: עברית (HE)
+- name: The Westminster Leningrad Codex (WLC)
+  value: WLC
+  language: עברית (HE)
+- name: 'Hindi Bible: Easy-to-Read Version (ERV-HI)'
+  value: ERV-HI
+  language: हिन्दी (HI)
+- name: Saral Hindi Bible (SHB)
+  value: SHB
+  language: हिन्दी (HI)
+- name: Ang Pulong Sang Dios (HLGN)
+  value: HLGN
+  language: Ilonggo (HIL)
+- name: New Chhattisgarhi Translation (नवां नियम छत्तीसगढ़ी) (NCA)
+  value: NCA
+  language: Chhattisgarhi (HNE)
+- name: 'Biblija: suvremeni hrvatski prijevod (SHP)'
+  value: SHP
+  language: Hrvatski (HR)
+- name: Hrvatski Novi Zavjet – Rijeka 2001 (HNZ-RI)
+  value: HNZ-RI
+  language: Hrvatski (HR)
+- name: Knijga O Kristu (CRO)
+  value: CRO
+  language: Hrvatski (HR)
+- name: Haitian Creole Version (HCV)
+  value: HCV
+  language: Kreyòl ayisyen (HT)
+- name: 'Nouvo Testaman: Vèsyon Kreyòl Fasil (VKF)'
+  value: VKF
+  language: Kreyòl ayisyen (HT)
+- name: Hungarian Károli (KAR)
+  value: KAR
+  language: Magyar (HU)
+- name: 'Hungarian Bible: Easy-to-Read Version (ERV-HU)'
+  value: ERV-HU
+  language: Magyar (HU)
+- name: Hungarian New Translation (NT-HU)
+  value: NT-HU
+  language: Magyar (HU)
+- name: Hawai‘i Pidgin (HWP)
+  value: HWP
+  language: Hawai‘i Pidgin (HWC)
+- name: Alkitab Mudah Dibaca (AMD)
+  value: AMD
+  language: Indonesia, bahasa (ID)
+- name: Icelandic Bible (ICELAND)
+  value: ICELAND
+  language: Íslenska (IS)
+- name: La Bibbia della Gioia (BDG)
+  value: BDG
+  language: Italiano (IT)
+- name: Conferenza Episcopale Italiana (CEI)
+  value: CEI
+  language: Italiano (IT)
+- name: La Nuova Diodati (LND)
+  value: LND
+  language: Italiano (IT)
+- name: Nuova Riveduta 1994 (NR1994)
+  value: NR1994
+  language: Italiano (IT)
+- name: Nuova Riveduta 2006 (NR2006)
+  value: NR2006
+  language: Italiano (IT)
+- name: 'Japanese Bible: Easy-to-Read Version (JERV)'
+  value: JERV
+  language: 日本語 (JA)
+- name: Japanese Living Bible (JLB)
+  value: JLB
+  language: 日本語 (JA)
+- name: Jacalteco, Oriental (JAC)
+  value: JAC
+  language: Jacalteco, Oriental (JAC)
+- name: Kekchi (KEK)
+  value: KEK
+  language: Kekchi (KEK)
+- name: 'Kannada Holy Bible: Easy-to-Read Version (KERV)'
+  value: KERV
+  language: ಕನ್ನಡ (KN)
+- name: 'Korean Bible: Easy-to-Read Version (KOERV)'
+  value: KOERV
+  language: 한국어 (KO)
+- name: Korean Living Bible (KLB)
+  value: KLB
+  language: 한국어 (KO)
+- name: Biblia Sacra Vulgata (VULGATE)
+  value: VULGATE
+  language: Latina (LA)
+- name: Endagaano Enkadde nʼEndagaano Empya (LCB)
+  value: LCB
+  language: Luganda (LG)
+- name: Maori Bible (MAORI)
+  value: MAORI
+  language: Māori (MI)
+- name: Macedonian New Testament (MNT)
+  value: MNT
+  language: Македонски (MK)
+- name: 'Marathi Bible: Easy-to-Read Version (ERV-MR)'
+  value: ERV-MR
+  language: मराठी (MR)
+- name: Mam, Central (MVC)
+  value: MVC
+  language: Mam, Central (MVC)
+- name: Mam de Todos Santos Chuchumatán (MVJ)
+  value: MVJ
+  language: Mam, Todos Santos (MVJ)
+- name: Reimer 2001 (REIMER)
+  value: REIMER
+  language: Plautdietsch (NDS)
+- name: 'Nepali Bible: Easy-to-Read Version (ERV-NE)'
+  value: ERV-NE
+  language: नेपाली (NE)
+- name: Náhuatl de Guerrero (NGU)
+  value: NGU
+  language: Náhuatl de Guerrero (NGU)
+- name: BasisBijbel (BB)
+  value: BB
+  language: Nederlands (NL)
+- name: Het Boek (HTB)
+  value: HTB
+  language: Nederlands (NL)
+- name: Det Norsk Bibelselskap 1930 (DNB1930)
+  value: DNB1930
+  language: Norsk (NO)
+- name: En Levende Bok (LB)
+  value: LB
+  language: Norsk (NO)
+- name: Mawu a Mulungu mu Chichewa Chalero (CCL)
+  value: CCL
+  language: Chichewa (NY)
+- name: 'Odia Holy Bible: Easy-to-Read Version (ERV-OR)'
+  value: ERV-OR
+  language: ଓଡ଼ିଆ (OR)
+- name: 'Punjabi Bible: Easy-to-Read Version (ERV-PA)'
+  value: ERV-PA
+  language: ਪੰਜਾਬੀ (PA)
+- name: Nowe Przymierze (NP)
+  value: NP
+  language: Polski (PL)
+- name: Słowo Życia (SZ-PL)
+  value: SZ-PL
+  language: Polski (PL)
+- name: Updated Gdańsk Bible (UBG)
+  value: UBG
+  language: Polski (PL)
+- name: Ne Bibliaj Tik Nawat (NBTN)
+  value: NBTN
+  language: Nawat (PPL)
+- name: Almeida Revista e Corrigida 2009 (ARC)
+  value: ARC
+  language: Português (PT)
+- name: 'Portuguese New Testament: Easy-to-Read Version (VFL)'
+  value: VFL
+  language: Português (PT)
+- name: Nova Traduҫão na Linguagem de Hoje 2000 (NTLH)
+  value: NTLH
+  language: Português (PT)
+- name: Nova Versão Transformadora (NVT)
+  value: NVT
+  language: Português (PT)
+- name: Nova Versão Internacional (NVI-PT)
+  value: NVI-PT
+  language: Português (PT)
+- name: O Livro (OL)
+  value: OL
+  language: Português (PT)
+- name: Mushuj Testamento Diospaj Shimi (MTDS)
+  value: MTDS
+  language: Quichua (QU)
+- name: Quiché, Centro Occidental (QUT)
+  value: QUT
+  language: Quiché, Centro Occidenta (QUT)
+- name: Cornilescu 1924 - Revised 2010, 2014 (RMNN)
+  value: RMNN
+  language: Română (RO)
+- name: Nouă Traducere În Limba Română (NTLR)
+  value: NTLR
+  language: Română (RO)
+- name: New Russian Translation (NRT)
+  value: NRT
+  language: Русский (RU)
+- name: Священное Писание (Восточный Перевод) (CARS)
+  value: CARS
+  language: Русский (RU)
+- name: Священное Писание (Восточный перевод), версия для Таджикистана (CARST)
+  value: CARST
+  language: Русский (RU)
+- name: Священное Писание (Восточный перевод), версия с «Аллахом» (CARSA)
+  value: CARSA
+  language: Русский (RU)
+- name: 'Russian New Testament: Easy-to-Read Version (ERV-RU)'
+  value: ERV-RU
+  language: Русский (RU)
+- name: Russian Synodal Version (RUSV)
+  value: RUSV
+  language: Русский (RU)
+- name: Nádej pre kazdého (NPK)
+  value: NPK
+  language: Slovenčina (SK)
+- name: Somali Bible (SOM)
+  value: SOM
+  language: Somali (SO)
+- name: Albanian Bible (ALB)
+  value: ALB
+  language: Shqip (SQ)
+- name: New Serbian Translation (NSP)
+  value: NSP
+  language: Српски (SR)
+- name: 'Serbian New Testament: Easy-to-Read Version (ERV-SR)'
+  value: ERV-SR
+  language: Српски (SR)
+- name: nuBibeln (Swedish Contemporary Bible) (NUB)
+  value: NUB
+  language: Svenska (SV)
+- name: Svenska 1917 (SV1917)
+  value: SV1917
+  language: Svenska (SV)
+- name: Svenska Folkbibeln (SFB)
+  value: SFB
+  language: Svenska (SV)
+- name: Svenska Folkbibeln 2015 (SFB15)
+  value: SFB15
+  language: Svenska (SV)
+- name: Swedish New Living Bible (Nya Levande Bibeln) (SVL)
+  value: SVL
+  language: Svenska (SV)
+- name: 'Agano Jipya: Tafsiri ya Kusoma-Kwa-Urahisi (TKU)'
+  value: TKU
+  language: Kiswahili (SW)
+- name: 'Neno: Bibilia Takatifu (SNT)'
+  value: SNT
+  language: Kiswahili (SW)
+- name: 'Tamil Bible: Easy-to-Read Version (ERV-TA)'
+  value: ERV-TA
+  language: தமிழ் (TA)
+- name: 'Telugu Holy Bible: Easy-to-Read Version (TERV)'
+  value: TERV
+  language: తెలుగు (TE)
+- name: New Thai Version (NTV-BIBLE)
+  value: NTV-BIBLE
+  language: ภาษาไทย (TH)
+- name: 'Thai New Testament: Easy-to-Read Version (ERV-TH)'
+  value: ERV-TH
+  language: ภาษาไทย (TH)
+- name: Thai New Contemporary Bible (TNCV)
+  value: TNCV
+  language: ภาษาไทย (TH)
+- name: 'Ang Bagong Tipan: Filipino Standard Version (FSV)'
+  value: FSV
+  language: Tagalog (TL)
+- name: Ang Biblia (1978) (ABTAG1978)
+  value: ABTAG1978
+  language: Tagalog (TL)
+- name: Ang Biblia, 2001 (ABTAG2001)
+  value: ABTAG2001
+  language: Tagalog (TL)
+- name: Ang Dating Biblia (1905) (ADB1905)
+  value: ADB1905
+  language: Tagalog (TL)
+- name: Ang Salita ng Dios (Tagalog Contemporary Bible) (ASND)
+  value: ASND
+  language: Tagalog (TL)
+- name: Ang Salita ng Diyos (SND)
+  value: SND
+  language: Tagalog (TL)
+- name: Magandang Balita Biblia (MBBTAG)
+  value: MBBTAG
+  language: Tagalog (TL)
+- name: Magandang Balita Biblia (with Deuterocanon) (MBBTAG-DC)
+  value: MBBTAG-DC
+  language: Tagalog (TL)
+- name: Nkwa Asem (NA-TWI)
+  value: NA-TWI
+  language: Twi (TWI)
+- name: Ukrainian Bible (UKR)
+  value: UKR
+  language: Українська (UK)
+- name: 'Ukrainian Bible: Easy-to-Read Version (ERV-UK)'
+  value: ERV-UK
+  language: Українська (UK)
+- name: 'Urdu Bible: Easy-to-Read Version (ERV-UR)'
+  value: ERV-UR
+  language: اردو (UR)
+- name: Uspanteco (USP)
+  value: USP
+  language: Uspanteco (USP)
+- name: Bản Dịch 2011 (BD2011)
+  value: BD2011
+  language: Tiêng Viêt (VI)
+- name: New Vietnamese Bible (NVB)
+  value: NVB
+  language: Tiêng Viêt (VI)
+- name: 'Vietnamese Bible: Easy-to-Read Version (BPT)'
+  value: BPT
+  language: Tiêng Viêt (VI)
+- name: Bíbélì Mímọ́ Yorùbá Òde Òn (BYO)
+  value: BYO
+  language: Yorùbá (YO)
+- name: Chinese Contemporary Bible (Simplified) (CCB)
+  value: CCB
+  language: 汉语 (ZH)
+- name: Chinese Contemporary Bible (Traditional) (CCBT)
+  value: CCBT
+  language: 汉语 (ZH)
+- name: 'Chinese New Testament: Easy-to-Read Version (ERV-ZH)'
+  value: ERV-ZH
+  language: 汉语 (ZH)
+- name: Chinese New Version (Simplified) (CNVS)
+  value: CNVS
+  language: 汉语 (ZH)
+- name: Chinese New Version (Traditional) (CNVT)
+  value: CNVT
+  language: 汉语 (ZH)
+- name: Chinese Standard Bible (Simplified) (CSBS)
+  value: CSBS
+  language: 汉语 (ZH)
+- name: Chinese Standard Bible (Traditional) (CSBT)
+  value: CSBT
+  language: 汉语 (ZH)
+- name: Chinese Union Version (Simplified) (CUVS)
+  value: CUVS
+  language: 汉语 (ZH)
+- name: Chinese Union Version (Traditional) (CUV)
+  value: CUV
+  language: 汉语 (ZH)
+- name: Chinese Union Version Modern Punctuation (Simplified) (CUVMPS)
+  value: CUVMPS
+  language: 汉语 (ZH)
+- name: Chinese Union Version Modern Punctuation (Traditional) (CUVMPT)
+  value: CUVMPT
+  language: 汉语 (ZH)
+- name: Revised Chinese Union Version (Simplified Script) Shen Edition (RCU17SS)
+  value: RCU17SS
+  language: 汉语 (ZH)
+- name: Revised Chinese Union Version (Traditional Script) Shen Edition (RCU17TS)
+  value: RCU17TS
+  language: 汉语 (ZH)
