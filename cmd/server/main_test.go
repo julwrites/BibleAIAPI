@@ -16,6 +16,9 @@ func TestMain(t *testing.T) {
 	// Set API_KEYS secret via env var for local fallback
 	os.Setenv("API_KEYS", `{"test-client": "test-api-key"}`)
 	defer os.Unsetenv("API_KEYS")
+	// Set VERSIONS_CONFIG_PATH to relative path for tests
+	os.Setenv("VERSIONS_CONFIG_PATH", "../../configs/versions.yaml")
+	defer os.Unsetenv("VERSIONS_CONFIG_PATH")
 
 	go main()
 

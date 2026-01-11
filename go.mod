@@ -15,6 +15,7 @@ require (
 	golang.org/x/net v0.47.0
 	google.golang.org/genproto v0.0.0-20250603155806-513f23925822
 	google.golang.org/grpc v1.76.0
+	gopkg.in/yaml.v2 v2.4.0
 )
 
 require (
