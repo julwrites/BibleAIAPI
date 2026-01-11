@@ -3,35 +3,44 @@ package main
 import (
 	"log"
 	"os"
+	"path/filepath"
 
 	"bible-api-service/internal/biblegateway"
 
 	"gopkg.in/yaml.v2"
 )
 
-func main() {
-	scraper := biblegateway.NewScraper()
+func run(scraper *biblegateway.Scraper, outputPath string) error {
 	log.Println("Fetching Bible versions...")
 	versions, err := scraper.GetVersions()
 	if err != nil {
-		log.Fatalf("Failed to get versions: %v", err)
+		return err
 	}
 
-	log.Printf("Found %d versions. Writing to configs/versions.yaml...", len(versions))
+	log.Printf("Found %d versions. Writing to %s...", len(versions), outputPath)
 
 	data, err := yaml.Marshal(versions)
 	if err != nil {
-		log.Fatalf("Failed to marshal versions to YAML: %v", err)
+		return err
 	}
 
-	// Ensure configs directory exists
-	if err := os.MkdirAll("configs", 0755); err != nil {
-		log.Fatalf("Failed to create configs directory: %v", err)
+	// Ensure directory exists
+	dir := filepath.Dir(outputPath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return err
 	}
 
-	if err := os.WriteFile("configs/versions.yaml", data, 0644); err != nil {
-		log.Fatalf("Failed to write to file: %v", err)
+	if err := os.WriteFile(outputPath, data, 0644); err != nil {
+		return err
 	}
 
-	log.Println("Successfully updated configs/versions.yaml")
+	log.Printf("Successfully updated %s", outputPath)
+	return nil
+}
+
+func main() {
+	scraper := biblegateway.NewScraper()
+	if err := run(scraper, "configs/versions.yaml"); err != nil {
+		log.Fatalf("Failed to update versions: %v", err)
+	}
 }
