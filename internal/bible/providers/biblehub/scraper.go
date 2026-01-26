@@ -31,6 +31,7 @@ func (s *Scraper) GetVerse(book, chapter, verse, version string) (string, error)
 	if version == "" {
 		version = "esv"
 	}
+	version = strings.ToLower(version)
 
 	bookSlug := strings.ToLower(strings.ReplaceAll(book, " ", "_"))
 	url := fmt.Sprintf("%s/%s/%s/%s.htm", s.baseURL, version, bookSlug, chapter)

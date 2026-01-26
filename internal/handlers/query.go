@@ -3,6 +3,7 @@ package handlers
 import (
 	"bible-api-service/internal/bible"
 	"bible-api-service/internal/bible/providers/biblegateway"
+	"bible-api-service/internal/bible/providers/biblehub"
 	"bible-api-service/internal/chat"
 	"bible-api-service/internal/llm"
 	"bible-api-service/internal/llm/provider"
@@ -12,6 +13,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 )
 
@@ -25,8 +27,13 @@ type QueryHandler struct {
 
 // NewQueryHandler creates a new QueryHandler with default clients.
 func NewQueryHandler(secretsClient secrets.Client) *QueryHandler {
-	// Initialize the Bible provider manager with Bible Gateway as the primary provider
-	bibleProvider := biblegateway.NewScraper()
+	// Initialize the Bible provider manager based on environment variable
+	var bibleProvider bible.Provider
+	if os.Getenv("BIBLE_PROVIDER") == "biblehub" {
+		bibleProvider = biblehub.NewScraper()
+	} else {
+		bibleProvider = biblegateway.NewScraper()
+	}
 	bibleManager := bible.NewProviderManager(bibleProvider)
 
 	getLLMClient := func() (provider.LLMClient, error) {
