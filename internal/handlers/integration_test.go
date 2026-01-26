@@ -41,73 +41,83 @@ func TestQueryEndpointIntegration(t *testing.T) {
 	}
 
 	authMiddleware := middleware.NewAuthMiddleware(secretsClient)
-	handler := NewQueryHandler(secretsClient)
-	server := httptest.NewServer(middleware.Logging(authMiddleware.APIKeyAuth(handler)))
-	defer server.Close()
 
-	t.Run("verse query", func(t *testing.T) {
-		reqBody := `{
-			"query": {
-				"verses": ["John 3:16"]
-			}
-		}`
-		req, _ := http.NewRequest("POST", server.URL+"/query", bytes.NewBufferString(reqBody))
-		req.Header.Set("X-API-KEY", testKey)
+	providers := []string{"biblegateway", "biblehub"}
 
-		resp, err := http.DefaultClient.Do(req)
-		if err != nil {
-			t.Fatalf("failed to make request: %v", err)
-		}
-		defer resp.Body.Close()
+	for _, provider := range providers {
+		t.Run("provider="+provider, func(t *testing.T) {
+			os.Setenv("BIBLE_PROVIDER", provider)
+			defer os.Unsetenv("BIBLE_PROVIDER")
 
-		if resp.StatusCode != http.StatusOK {
-			t.Errorf("expected status code %d, got %d", http.StatusOK, resp.StatusCode)
-		}
-	})
+			handler := NewQueryHandler(secretsClient)
+			server := httptest.NewServer(middleware.Logging(authMiddleware.APIKeyAuth(handler)))
+			defer server.Close()
 
-	t.Run("prompt query", func(t *testing.T) {
-		reqBody := `{
-			"query": {
-				"prompt": "Who was Moses?"
-			},
-			"context": {
-				"user": {
-					"version": "ESV"
+			t.Run("verse query", func(t *testing.T) {
+				reqBody := `{
+					"query": {
+						"verses": ["John 3:16"]
+					}
+				}`
+				req, _ := http.NewRequest("POST", server.URL+"/query", bytes.NewBufferString(reqBody))
+				req.Header.Set("X-API-KEY", testKey)
+
+				resp, err := http.DefaultClient.Do(req)
+				if err != nil {
+					t.Fatalf("failed to make request: %v", err)
 				}
-			}
-		}`
-		req, _ := http.NewRequest("POST", server.URL+"/query", bytes.NewBufferString(reqBody))
-		req.Header.Set("X-API-KEY", testKey)
+				defer resp.Body.Close()
 
-		resp, err := http.DefaultClient.Do(req)
-		if err != nil {
-			t.Fatalf("failed to make request: %v", err)
-		}
-		defer resp.Body.Close()
+				if resp.StatusCode != http.StatusOK {
+					t.Errorf("expected status code %d, got %d", http.StatusOK, resp.StatusCode)
+				}
+			})
 
-		// Expecting 500 because we don't have real LLM credentials in integration test environment usually
-		if resp.StatusCode != http.StatusInternalServerError {
-			t.Errorf("expected status code %d, got %d", http.StatusInternalServerError, resp.StatusCode)
-		}
-	})
+			t.Run("prompt query", func(t *testing.T) {
+				reqBody := `{
+					"query": {
+						"prompt": "Who was Moses?"
+					},
+					"context": {
+						"user": {
+							"version": "ESV"
+						}
+					}
+				}`
+				req, _ := http.NewRequest("POST", server.URL+"/query", bytes.NewBufferString(reqBody))
+				req.Header.Set("X-API-KEY", testKey)
 
-	t.Run("word search query", func(t *testing.T) {
-		reqBody := `{
-			"query": {
-				"words": ["grace"]
-			}
-		}`
-		req, _ := http.NewRequest("POST", server.URL+"/query", bytes.NewBufferString(reqBody))
-		req.Header.Set("X-API-KEY", testKey)
+				resp, err := http.DefaultClient.Do(req)
+				if err != nil {
+					t.Fatalf("failed to make request: %v", err)
+				}
+				defer resp.Body.Close()
 
-		resp, err := http.DefaultClient.Do(req)
-		if err != nil {
-			t.Fatalf("failed to make request: %v", err)
-		}
-		defer resp.Body.Close()
+				// Expecting 500 because we don't have real LLM credentials in integration test environment usually
+				if resp.StatusCode != http.StatusInternalServerError {
+					t.Errorf("expected status code %d, got %d", http.StatusInternalServerError, resp.StatusCode)
+				}
+			})
 
-		if resp.StatusCode != http.StatusOK {
-			t.Errorf("expected status code %d, got %d", http.StatusOK, resp.StatusCode)
-		}
-	})
+			t.Run("word search query", func(t *testing.T) {
+				reqBody := `{
+					"query": {
+						"words": ["grace"]
+					}
+				}`
+				req, _ := http.NewRequest("POST", server.URL+"/query", bytes.NewBufferString(reqBody))
+				req.Header.Set("X-API-KEY", testKey)
+
+				resp, err := http.DefaultClient.Do(req)
+				if err != nil {
+					t.Fatalf("failed to make request: %v", err)
+				}
+				defer resp.Body.Close()
+
+				if resp.StatusCode != http.StatusOK {
+					t.Errorf("expected status code %d, got %d", http.StatusOK, resp.StatusCode)
+				}
+			})
+		})
+	}
 }
