@@ -1,7 +1,8 @@
 package handlers
 
 import (
-	"bible-api-service/internal/biblegateway"
+	"bible-api-service/internal/bible"
+	"bible-api-service/internal/bible/providers/biblegateway"
 	"bible-api-service/internal/chat"
 	"bible-api-service/internal/llm"
 	"bible-api-service/internal/llm/provider"
@@ -24,15 +25,18 @@ type QueryHandler struct {
 
 // NewQueryHandler creates a new QueryHandler with default clients.
 func NewQueryHandler(secretsClient secrets.Client) *QueryHandler {
-	bibleGatewayClient := biblegateway.NewScraper()
+	// Initialize the Bible provider manager with Bible Gateway as the primary provider
+	bibleProvider := biblegateway.NewScraper()
+	bibleManager := bible.NewProviderManager(bibleProvider)
+
 	getLLMClient := func() (provider.LLMClient, error) {
 		return llm.NewFallbackClient(context.Background(), secretsClient)
 	}
 	return &QueryHandler{
-		BibleGatewayClient: bibleGatewayClient,
+		BibleGatewayClient: bibleManager,
 		GetLLMClient:       getLLMClient,
 		FFClient:           &GoFeatureFlagClient{},
-		ChatService:        chat.NewChatService(bibleGatewayClient, getLLMClient),
+		ChatService:        chat.NewChatService(bibleManager, getLLMClient),
 	}
 }
 
@@ -199,7 +203,7 @@ func (h *QueryHandler) handleVerseQuery(w http.ResponseWriter, r *http.Request, 
 
 func (h *QueryHandler) handleWordSearchQuery(w http.ResponseWriter, r *http.Request, request QueryRequest) {
 	log.Printf("Handling word search query for words: %v", request.Query.Words)
-	allResults := make([]biblegateway.SearchResult, 0)
+	allResults := make([]bible.SearchResult, 0)
 	for _, word := range request.Query.Words {
 		// Version is effectively empty string here.
 		results, err := h.BibleGatewayClient.SearchWords(word, request.Context.User.Version)

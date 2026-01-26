@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"bible-api-service/internal/biblegateway"
+	"bible-api-service/internal/bible"
 	"bible-api-service/internal/chat"
 	"bible-api-service/internal/secrets"
 	"bytes"
@@ -14,14 +14,14 @@ import (
 
 type mockBibleGatewayClient struct {
 	getVerseFunc    func(book, chapter, verse, version string) (string, error)
-	searchWordsFunc func(query, version string) ([]biblegateway.SearchResult, error)
+	searchWordsFunc func(query, version string) ([]bible.SearchResult, error)
 }
 
 func (m *mockBibleGatewayClient) GetVerse(book, chapter, verse, version string) (string, error) {
 	return m.getVerseFunc(book, chapter, verse, version)
 }
 
-func (m *mockBibleGatewayClient) SearchWords(query, version string) ([]biblegateway.SearchResult, error) {
+func (m *mockBibleGatewayClient) SearchWords(query, version string) ([]bible.SearchResult, error) {
 	return m.searchWordsFunc(query, version)
 }
 
@@ -64,8 +64,8 @@ func TestHandleVerseQuery(t *testing.T) {
 func TestHandleWordSearchQuery(t *testing.T) {
 	handler := &QueryHandler{
 		BibleGatewayClient: &mockBibleGatewayClient{
-			searchWordsFunc: func(query, version string) ([]biblegateway.SearchResult, error) {
-				return []biblegateway.SearchResult{
+			searchWordsFunc: func(query, version string) ([]bible.SearchResult, error) {
+				return []bible.SearchResult{
 					{Verse: "Romans 3:24", URL: "http://example.com/romans3:24"},
 				}, nil
 			},
@@ -87,7 +87,7 @@ func TestHandleWordSearchQuery(t *testing.T) {
 			status, http.StatusOK)
 	}
 
-	var response []biblegateway.SearchResult
+	var response []bible.SearchResult
 	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
@@ -323,7 +323,7 @@ func TestHandleVerseQuery_Error(t *testing.T) {
 func TestHandleWordSearchQuery_Error(t *testing.T) {
 	handler := &QueryHandler{
 		BibleGatewayClient: &mockBibleGatewayClient{
-			searchWordsFunc: func(query, version string) ([]biblegateway.SearchResult, error) {
+			searchWordsFunc: func(query, version string) ([]bible.SearchResult, error) {
 				return nil, &http.MaxBytesError{}
 			},
 		},

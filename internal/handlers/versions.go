@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"bible-api-service/internal/biblegateway"
+	"bible-api-service/internal/bible/providers/biblegateway"
 
 	"gopkg.in/yaml.v2"
 )

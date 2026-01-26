@@ -7,6 +7,8 @@ import (
 	"net/url"
 	"strings"
 
+	"bible-api-service/internal/bible"
+
 	"github.com/PuerkitoBio/goquery"
 	"golang.org/x/net/html"
 )
@@ -129,7 +131,6 @@ func removeEmptyParagraphs(s *goquery.Selection) {
 	})
 }
 
-
 // Scraper is a client for scraping the Bible Gateway website.
 type Scraper struct {
 	client  *http.Client
@@ -142,13 +143,6 @@ func NewScraper() *Scraper {
 		client:  &http.Client{},
 		baseURL: "https://classic.biblegateway.com",
 	}
-}
-
-// SearchResult represents a search result.
-type SearchResult struct {
-	Verse string `json:"verse"`
-	Text  string `json:"text"`
-	URL   string `json:"url"`
 }
 
 // GetVerse fetches a single Bible verse by reference and returns it as sanitized HTML.
@@ -224,7 +218,7 @@ func sanitizeSnippet(s *goquery.Selection) (string, error) {
 }
 
 // SearchWords searches for a word or phrase and returns a list of relevant verses.
-func (s *Scraper) SearchWords(query, version string) ([]SearchResult, error) {
+func (s *Scraper) SearchWords(query, version string) ([]bible.SearchResult, error) {
 	encodedQuery := url.QueryEscape(query)
 	url := s.baseURL + fmt.Sprintf("/quicksearch/?quicksearch=%s&version=%s&interface=print", encodedQuery, version)
 	log.Printf("Scraping URL: %s", url)
@@ -250,7 +244,7 @@ func (s *Scraper) SearchWords(query, version string) ([]SearchResult, error) {
 		return nil, err
 	}
 
-	results := []SearchResult{}
+	results := []bible.SearchResult{}
 	selection := doc.Find(".search-result-list .bible-item")
 	log.Printf("Found %d search results for query '%s'", selection.Length(), query)
 
@@ -262,7 +256,7 @@ func (s *Scraper) SearchWords(query, version string) ([]SearchResult, error) {
 		textSel := sel.Find(".bible-item-text")
 		text, _ := sanitizeSnippet(textSel)
 
-		results = append(results, SearchResult{
+		results = append(results, bible.SearchResult{
 			Verse: verse,
 			Text:  text,
 			URL:   s.baseURL + url,
