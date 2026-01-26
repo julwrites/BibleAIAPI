@@ -4,6 +4,7 @@ import (
 	"bible-api-service/internal/bible"
 	"bible-api-service/internal/bible/providers/biblegateway"
 	"bible-api-service/internal/bible/providers/biblehub"
+	"bible-api-service/internal/bible/providers/biblenow"
 	"bible-api-service/internal/chat"
 	"bible-api-service/internal/llm"
 	"bible-api-service/internal/llm/provider"
@@ -29,9 +30,12 @@ type QueryHandler struct {
 func NewQueryHandler(secretsClient secrets.Client) *QueryHandler {
 	// Initialize the Bible provider manager based on environment variable
 	var bibleProvider bible.Provider
-	if os.Getenv("BIBLE_PROVIDER") == "biblehub" {
+	switch os.Getenv("BIBLE_PROVIDER") {
+	case "biblehub":
 		bibleProvider = biblehub.NewScraper()
-	} else {
+	case "biblenow":
+		bibleProvider = biblenow.NewScraper()
+	default:
 		bibleProvider = biblegateway.NewScraper()
 	}
 	bibleManager := bible.NewProviderManager(bibleProvider)
