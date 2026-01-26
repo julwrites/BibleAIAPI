@@ -18,13 +18,13 @@ type: task
 Refactor the existing `internal/biblegateway` package into a generic `internal/bible` service using the Provider Pattern. This will allow the application to support multiple Bible data sources (e.g., BibleHub, BibleNow) in the future while maintaining backward compatibility with the current Bible Gateway implementation.
 
 ### Acceptance Criteria
-- [ ] `internal/bible` package is created with `Provider` interface and `ProviderManager`.
-- [ ] Existing `biblegateway` logic is moved to `internal/bible/providers/biblegateway`.
-- [ ] `BibleGateway` implementation implements the `Provider` interface.
-- [ ] `ProviderManager` is integrated into the main application.
-- [ ] Existing tests for `biblegateway` are migrated and pass.
-- [ ] New tests for `ProviderManager` are implemented.
-- [ ] The API functions correctly with the refactored code.
+- [x] `internal/bible` package is created with `Provider` interface and `ProviderManager`.
+- [x] Existing `biblegateway` logic is moved to `internal/bible/providers/biblegateway`.
+- [x] `BibleGateway` implementation implements the `Provider` interface.
+- [x] `ProviderManager` is integrated into the main application.
+- [x] Existing tests for `biblegateway` are migrated and pass.
+- [x] New tests for `ProviderManager` are implemented.
+- [x] The API functions correctly with the refactored code.
 
 ## Implementation Status
 ### Completed Work
