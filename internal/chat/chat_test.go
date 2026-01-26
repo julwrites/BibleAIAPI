@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"bible-api-service/internal/biblegateway"
+	"bible-api-service/internal/bible"
 	"bible-api-service/internal/llm/provider"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -22,12 +22,12 @@ func (m *MockBibleGatewayClient) GetVerse(book, chapter, verse, version string) 
 	return args.String(0), args.Error(1)
 }
 
-func (m *MockBibleGatewayClient) SearchWords(query, version string) ([]biblegateway.SearchResult, error) {
+func (m *MockBibleGatewayClient) SearchWords(query, version string) ([]bible.SearchResult, error) {
 	args := m.Called(query, version)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).([]biblegateway.SearchResult), args.Error(1)
+	return args.Get(0).([]bible.SearchResult), args.Error(1)
 }
 
 // MockLLMClient is a mock type for the LLMClient interface
@@ -101,7 +101,7 @@ func TestChatService_Process_VersesAndWords(t *testing.T) {
 	mockBgClient.On("GetVerse", "Genesis", "5", "1", "ESV").Return("<p>This is the book of the generations of Adam...</p>", nil)
 
 	// Mock SearchWords calls
-	searchResults := []biblegateway.SearchResult{
+	searchResults := []bible.SearchResult{
 		{Verse: "Ephesians 2:8", Text: "For by grace you have been saved..."},
 	}
 	mockBgClient.On("SearchWords", "Grace", "ESV").Return(searchResults, nil)
@@ -146,7 +146,7 @@ func TestChatService_Process_WithWords(t *testing.T) {
 		Schema:  `{"type": "object", "properties": {"summary": {"type": "string"}}}`,
 	}
 
-	searchResults := []biblegateway.SearchResult{
+	searchResults := []bible.SearchResult{
 		{Verse: "Ephesians 2:8", Text: "For it is by grace you have been saved..."},
 	}
 

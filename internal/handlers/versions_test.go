@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"bible-api-service/internal/biblegateway"
+	"bible-api-service/internal/bible/providers/biblegateway"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

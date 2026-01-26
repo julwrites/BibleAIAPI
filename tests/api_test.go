@@ -1,7 +1,8 @@
 package tests
 
 import (
-	"bible-api-service/internal/biblegateway"
+	"bible-api-service/internal/bible"
+	"bible-api-service/internal/bible/providers/biblegateway"
 	"bible-api-service/internal/handlers"
 	"bible-api-service/internal/secrets"
 	"bytes"
@@ -59,7 +60,7 @@ func TestAPI_WordSearch_CleanOutput(t *testing.T) {
 			t.Fatalf("expected status 200, got %d", w.Code)
 		}
 
-		var results []biblegateway.SearchResult
+		var results []bible.SearchResult
 		if err := json.NewDecoder(w.Body).Decode(&results); err != nil {
 			t.Fatalf("failed to decode response: %v", err)
 		}

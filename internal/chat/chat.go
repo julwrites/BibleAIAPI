@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"bible-api-service/internal/biblegateway"
+	"bible-api-service/internal/bible"
 	"bible-api-service/internal/llm/provider"
 	"bible-api-service/internal/util"
 )
@@ -14,7 +14,7 @@ import (
 // BibleGatewayClient defines the interface for the Bible Gateway client.
 type BibleGatewayClient interface {
 	GetVerse(book, chapter, verse, version string) (string, error)
-	SearchWords(query, version string) ([]biblegateway.SearchResult, error)
+	SearchWords(query, version string) ([]bible.SearchResult, error)
 }
 
 // GetLLMClient defines the function signature for getting an LLM client.
