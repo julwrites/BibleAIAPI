@@ -35,10 +35,10 @@ func NewClient(ctx context.Context, secretsClient secrets.Client) (provider.LLMC
 	return NewDeepseek(llm), nil
 }
 
-func (c *DeepseekClient) Query(ctx context.Context, prompt string, schemaJSON string) (string, error) {
+func (c *DeepseekClient) Query(ctx context.Context, prompt string, schemaJSON string) (string, string, error) {
 	var toolSchema llms.FunctionDefinition
 	if err := json.Unmarshal([]byte(schemaJSON), &toolSchema); err != nil {
-		return "", err
+		return "", "deepseek", err
 	}
 
 	messages := []llms.MessageContent{
@@ -61,12 +61,20 @@ func (c *DeepseekClient) Query(ctx context.Context, prompt string, schemaJSON st
 		llms.WithToolChoice("required"),
 	)
 	if err != nil {
-		return "", err
+		return "", "deepseek", err
 	}
 
 	if len(completion.Choices) == 0 || len(completion.Choices[0].ToolCalls) == 0 {
-		return "", errors.New("no tool call found in LLM response")
+		return "", "deepseek", errors.New("no tool call found in LLM response")
 	}
 
-	return completion.Choices[0].ToolCalls[0].FunctionCall.Arguments, nil
+	return completion.Choices[0].ToolCalls[0].FunctionCall.Arguments, "deepseek", nil
+}
+
+func (c *DeepseekClient) Stream(ctx context.Context, prompt string) (<-chan string, string, error) {
+	return nil, "deepseek", errors.New("not implemented")
+}
+
+func (c *DeepseekClient) Name() string {
+	return "deepseek"
 }

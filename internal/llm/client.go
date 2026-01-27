@@ -70,20 +70,41 @@ func NewFallbackClient(ctx context.Context, secretsClient secrets.Client) (*Fall
 }
 
 // Query tries each client in order until one succeeds.
-func (c *FallbackClient) Query(ctx context.Context, prompt string, schema string) (string, error) {
+func (c *FallbackClient) Query(ctx context.Context, prompt string, schema string) (string, string, error) {
 	var lastErr error
 
 	for _, client := range c.clients {
 		ctxWithTimeout, cancel := context.WithTimeout(ctx, 1*time.Minute)
 
-		result, err := client.Query(ctxWithTimeout, prompt, schema)
+		result, providerName, err := client.Query(ctxWithTimeout, prompt, schema)
 		cancel()
 		if err == nil {
-			return result, nil
+			return result, providerName, nil
 		}
-		log.Printf("Provider failed: %v", err)
+		log.Printf("Provider %s failed: %v", client.Name(), err)
 		lastErr = err
 	}
 
-	return "", fmt.Errorf("all LLM providers failed: %w", lastErr)
+	return "", "", fmt.Errorf("all LLM providers failed: %w", lastErr)
+}
+
+// Stream tries each client in order until one succeeds.
+func (c *FallbackClient) Stream(ctx context.Context, prompt string) (<-chan string, string, error) {
+	var lastErr error
+
+	for _, client := range c.clients {
+		ch, providerName, err := client.Stream(ctx, prompt)
+		if err == nil {
+			return ch, providerName, nil
+		}
+		log.Printf("Provider %s stream failed: %v", client.Name(), err)
+		lastErr = err
+	}
+
+	return nil, "", fmt.Errorf("all LLM providers failed to stream: %w", lastErr)
+}
+
+// Name returns the name of the client.
+func (c *FallbackClient) Name() string {
+	return "fallback"
 }
