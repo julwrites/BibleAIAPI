@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bible-api-service/internal/bible"
+	"bible-api-service/internal/bible/providers/biblecom"
 	"bible-api-service/internal/bible/providers/biblegateway"
 	"bible-api-service/internal/bible/providers/biblehub"
 	"bible-api-service/internal/bible/providers/biblenow"
@@ -32,6 +33,7 @@ func NewQueryHandler(secretsClient secrets.Client, versionManager *bible.Version
 	gatewayProvider := biblegateway.NewScraper()
 	hubProvider := biblehub.NewScraper()
 	nowProvider := biblenow.NewScraper()
+	comProvider := biblecom.NewScraper()
 
 	// Initialize ProviderManager with default/primary (gateway)
 	bibleManager := bible.NewProviderManager(gatewayProvider)
@@ -40,6 +42,7 @@ func NewQueryHandler(secretsClient secrets.Client, versionManager *bible.Version
 	bibleManager.RegisterProvider(bible.DefaultProviderName, gatewayProvider)
 	bibleManager.RegisterProvider("biblehub", hubProvider)
 	bibleManager.RegisterProvider("biblenow", nowProvider)
+	bibleManager.RegisterProvider("biblecom", comProvider)
 
 	getLLMClient := func() (provider.LLMClient, error) {
 		return llm.NewFallbackClient(context.Background(), secretsClient)
