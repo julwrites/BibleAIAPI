@@ -1,6 +1,7 @@
 package biblenow
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -16,12 +17,12 @@ func TestGetVersions(t *testing.T) {
 <body>
     <div class="menu">
         <ul>
-            <li><a href="/en/bible/king-james-version">King James Version (KJV)</a></li>
-            <li><a href="/en/bible/american-standard-version">American Standard Version (ASV)</a></li>
-            <li><a href="/en/bible/new-international-version">New International Version (NIV)</a></li>
+            <li><a href="%s/en/bible/king-james-version">King James Version (KJV)</a></li>
+            <li><a href="%s/en/bible/american-standard-version">American Standard Version (ASV)</a></li>
+            <li><a href="%s/en/bible/new-international-version">New International Version (NIV)</a></li>
             <!-- Some other links to ignore -->
-            <li><a href="/en/bible/king-james-version/genesis">Genesis</a></li>
-            <li><a href="/en/about">About</a></li>
+            <li><a href="%s/en/bible/king-james-version/genesis">Genesis</a></li>
+            <li><a href="%s/en/about">About</a></li>
         </ul>
     </div>
 </body>
@@ -29,9 +30,10 @@ func TestGetVersions(t *testing.T) {
 `
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		baseURL := "http://" + r.Host
 		if r.URL.Path == "/en/bible" {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(mockHTML))
+			w.Write([]byte(fmt.Sprintf(mockHTML, baseURL, baseURL, baseURL, baseURL, baseURL)))
 			return
 		}
 		http.NotFound(w, r)
