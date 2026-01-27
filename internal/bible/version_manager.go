@@ -74,3 +74,28 @@ func (vm *VersionManager) GetProviderCode(unifiedCode, provider string) (string,
 	// Fallback to unified code if provider mapping is missing
 	return unifiedCode, nil
 }
+
+// SelectProvider resolves the best provider and provider-specific code for a unified version code.
+// It iterates through the preferredProviders list and selects the first one that supports the version.
+// If preferredProviders is nil or empty, it defaults to ["biblegateway", "biblehub", "biblenow"].
+func (vm *VersionManager) SelectProvider(unifiedCode string, preferredProviders []string) (string, string, error) {
+	vm.mu.RLock()
+	defer vm.mu.RUnlock()
+
+	if len(preferredProviders) == 0 {
+		preferredProviders = []string{"biblegateway", "biblehub", "biblenow"}
+	}
+
+	v, ok := vm.byCode[strings.ToUpper(unifiedCode)]
+	if !ok {
+		return "", "", fmt.Errorf("version not found: %s", unifiedCode)
+	}
+
+	for _, provider := range preferredProviders {
+		if code, ok := v.Providers[provider]; ok && code != "" {
+			return provider, code, nil
+		}
+	}
+
+	return "", "", fmt.Errorf("no suitable provider found for version: %s", unifiedCode)
+}
