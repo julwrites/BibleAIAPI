@@ -52,7 +52,8 @@ func TestAPI_WordSearch_CleanOutput(t *testing.T) {
 	vm, _ := bible.NewVersionManager(path)
 
 	handler := handlers.NewQueryHandler(&secrets.EnvClient{}, vm)
-	handler.BibleGatewayClient = scraper
+	// handler.BibleGatewayClient = scraper // OLD
+	handler.ProviderManager.RegisterProvider("biblegateway", scraper)
 
 	// 3. Test Word Search
 	t.Run("Word Search - Love", func(t *testing.T) {
