@@ -1,6 +1,6 @@
 ---
 id: FOUNDATION-20260127-040600-ETB
-status: pending
+status: completed
 title: Refactor VersionManager for Multi-Provider Support
 priority: high
 created: 2026-01-27 04:06:00
