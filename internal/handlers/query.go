@@ -14,49 +14,42 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"os"
 	"strings"
 )
 
 // QueryHandler is the main handler for the /query endpoint.
 type QueryHandler struct {
-	BibleGatewayClient BibleGatewayClient
-	GetLLMClient       GetLLMClient
-	FFClient           FFClient
-	ChatService        ChatService
-	VersionManager     *bible.VersionManager
-	ProviderName       string
+	ProviderManager *bible.ProviderManager
+	GetLLMClient    GetLLMClient
+	FFClient        FFClient
+	ChatService     ChatService
+	VersionManager  *bible.VersionManager
 }
 
 // NewQueryHandler creates a new QueryHandler with default clients.
 func NewQueryHandler(secretsClient secrets.Client, versionManager *bible.VersionManager) *QueryHandler {
-	// Initialize the Bible provider manager based on environment variable
-	providerName := os.Getenv("BIBLE_PROVIDER")
-	if providerName == "" {
-		providerName = "biblegateway"
-	}
+	// Initialize providers
+	gatewayProvider := biblegateway.NewScraper()
+	hubProvider := biblehub.NewScraper()
+	nowProvider := biblenow.NewScraper()
 
-	var bibleProvider bible.Provider
-	switch providerName {
-	case "biblehub":
-		bibleProvider = biblehub.NewScraper()
-	case "biblenow":
-		bibleProvider = biblenow.NewScraper()
-	default:
-		bibleProvider = biblegateway.NewScraper()
-	}
-	bibleManager := bible.NewProviderManager(bibleProvider)
+	// Initialize ProviderManager with default/primary (gateway)
+	bibleManager := bible.NewProviderManager(gatewayProvider)
+
+	// Register all providers
+	bibleManager.RegisterProvider(bible.DefaultProviderName, gatewayProvider)
+	bibleManager.RegisterProvider("biblehub", hubProvider)
+	bibleManager.RegisterProvider("biblenow", nowProvider)
 
 	getLLMClient := func() (provider.LLMClient, error) {
 		return llm.NewFallbackClient(context.Background(), secretsClient)
 	}
 	return &QueryHandler{
-		BibleGatewayClient: bibleManager,
-		GetLLMClient:       getLLMClient,
-		FFClient:           &GoFeatureFlagClient{},
-		ChatService:        chat.NewChatService(bibleManager, getLLMClient),
-		VersionManager:     versionManager,
-		ProviderName:       providerName,
+		ProviderManager: bibleManager,
+		GetLLMClient:    getLLMClient,
+		FFClient:        &GoFeatureFlagClient{},
+		ChatService:     chat.NewChatService(bibleManager, getLLMClient),
+		VersionManager:  versionManager,
 	}
 }
 
@@ -107,28 +100,28 @@ func (h *QueryHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		request.Context.User.Version = "ESV"
 	}
 
-	// Resolve provider-specific version
-	providerVersion, err := h.VersionManager.GetProviderCode(request.Context.User.Version, h.ProviderName)
+	// Dynamic Provider Selection
+	providerName, providerVersion, err := h.VersionManager.SelectProvider(request.Context.User.Version, nil)
 	if err != nil {
-		log.Printf("Version lookup failed for %s: %v", request.Context.User.Version, err)
-		// Fallback to unified version if lookup fails
+		log.Printf("Provider selection failed for %s: %v. Falling back to %s.", request.Context.User.Version, err, bible.DefaultProviderName)
+		// Fallback
+		providerName = bible.DefaultProviderName
 		providerVersion = request.Context.User.Version
 	}
-	// Temporarily override the version in request context so handlers use the provider code
-	// Note: Use a separate variable or modify request object if safe.
-	// We'll pass providerVersion explicitly where needed or modify the request struct locally.
+
+	// Update the version in request context to the provider-specific code
 	request.Context.User.Version = providerVersion
 
 	if hasPrompt {
-		h.handlePromptQuery(w, r, request)
+		h.handlePromptQuery(w, r, request, providerName)
 	} else if hasVerses {
-		h.handleVerseQuery(w, r, request)
+		h.handleVerseQuery(w, r, request, providerName)
 	} else if hasWords {
-		h.handleWordSearchQuery(w, r, request)
+		h.handleWordSearchQuery(w, r, request, providerName)
 	}
 }
 
-func (h *QueryHandler) handlePromptQuery(w http.ResponseWriter, r *http.Request, request QueryRequest) {
+func (h *QueryHandler) handlePromptQuery(w http.ResponseWriter, r *http.Request, request QueryRequest, providerName string) {
 	// Determine schema. If not provided in Context, use default "Open Query" schema.
 	schema := request.Context.Schema
 	if schema == "" {
@@ -167,6 +160,7 @@ func (h *QueryHandler) handlePromptQuery(w http.ResponseWriter, r *http.Request,
 		VerseRefs: request.Context.Verses,
 		Words:     request.Context.Words,
 		Version:   request.Context.User.Version, // This is now providerVersion
+		Provider:  providerName,
 		Prompt:    request.Query.Prompt,
 		Schema:    schema,
 	}
@@ -182,7 +176,14 @@ func (h *QueryHandler) handlePromptQuery(w http.ResponseWriter, r *http.Request,
 	json.NewEncoder(w).Encode(result)
 }
 
-func (h *QueryHandler) handleVerseQuery(w http.ResponseWriter, r *http.Request, request QueryRequest) {
+func (h *QueryHandler) handleVerseQuery(w http.ResponseWriter, r *http.Request, request QueryRequest, providerName string) {
+	p, err := h.ProviderManager.GetProvider(providerName)
+	if err != nil {
+		log.Printf("Failed to get provider %s: %v", providerName, err)
+		util.JSONError(w, http.StatusInternalServerError, "Provider configuration error")
+		return
+	}
+
 	var verseText []string
 	for _, verseRef := range request.Query.Verses {
 		book, chapter, verseNum, err := util.ParseVerseReference(verseRef)
@@ -191,9 +192,9 @@ func (h *QueryHandler) handleVerseQuery(w http.ResponseWriter, r *http.Request, 
 			return
 		}
 
-		verse, err := h.BibleGatewayClient.GetVerse(book, chapter, verseNum, request.Context.User.Version)
+		verse, err := p.GetVerse(book, chapter, verseNum, request.Context.User.Version)
 		if err != nil {
-			log.Printf("BibleGatewayClient.GetVerse failed for %s %s:%s: %v", book, chapter, verseNum, err)
+			log.Printf("Provider %s GetVerse failed for %s %s:%s: %v", providerName, book, chapter, verseNum, err)
 			util.JSONError(w, http.StatusInternalServerError, "Failed to get verse")
 			return
 		}
@@ -202,13 +203,21 @@ func (h *QueryHandler) handleVerseQuery(w http.ResponseWriter, r *http.Request, 
 	json.NewEncoder(w).Encode(map[string]string{"verse": strings.Join(verseText, "\n")})
 }
 
-func (h *QueryHandler) handleWordSearchQuery(w http.ResponseWriter, r *http.Request, request QueryRequest) {
-	log.Printf("Handling word search query for words: %v", request.Query.Words)
+func (h *QueryHandler) handleWordSearchQuery(w http.ResponseWriter, r *http.Request, request QueryRequest, providerName string) {
+	log.Printf("Handling word search query for words: %v using provider: %s", request.Query.Words, providerName)
+
+	p, err := h.ProviderManager.GetProvider(providerName)
+	if err != nil {
+		log.Printf("Failed to get provider %s: %v", providerName, err)
+		util.JSONError(w, http.StatusInternalServerError, "Provider configuration error")
+		return
+	}
+
 	allResults := make([]bible.SearchResult, 0)
 	for _, word := range request.Query.Words {
-		results, err := h.BibleGatewayClient.SearchWords(word, request.Context.User.Version)
+		results, err := p.SearchWords(word, request.Context.User.Version)
 		if err != nil {
-			log.Printf("Error searching words '%s': %v", word, err)
+			log.Printf("Error searching words '%s' with provider %s: %v", word, providerName, err)
 			util.JSONError(w, http.StatusInternalServerError, "Failed to search words")
 			return
 		}

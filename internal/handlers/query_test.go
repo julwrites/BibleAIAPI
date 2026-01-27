@@ -16,17 +16,32 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type mockBibleGatewayClient struct {
+// MockProvider is a simple mock implementation of bible.Provider
+type MockProvider struct {
 	getVerseFunc    func(book, chapter, verse, version string) (string, error)
 	searchWordsFunc func(query, version string) ([]bible.SearchResult, error)
+	getVersionsFunc func() ([]bible.ProviderVersion, error)
 }
 
-func (m *mockBibleGatewayClient) GetVerse(book, chapter, verse, version string) (string, error) {
-	return m.getVerseFunc(book, chapter, verse, version)
+func (m *MockProvider) GetVerse(book, chapter, verse, version string) (string, error) {
+	if m.getVerseFunc != nil {
+		return m.getVerseFunc(book, chapter, verse, version)
+	}
+	return "", nil
 }
 
-func (m *mockBibleGatewayClient) SearchWords(query, version string) ([]bible.SearchResult, error) {
-	return m.searchWordsFunc(query, version)
+func (m *MockProvider) SearchWords(query, version string) ([]bible.SearchResult, error) {
+	if m.searchWordsFunc != nil {
+		return m.searchWordsFunc(query, version)
+	}
+	return nil, nil
+}
+
+func (m *MockProvider) GetVersions() ([]bible.ProviderVersion, error) {
+	if m.getVersionsFunc != nil {
+		return m.getVersionsFunc()
+	}
+	return nil, nil
 }
 
 func createTestVersionManager(t *testing.T) *bible.VersionManager {
@@ -49,14 +64,20 @@ func createTestVersionManager(t *testing.T) *bible.VersionManager {
 
 func TestHandleVerseQuery(t *testing.T) {
 	vm := createTestVersionManager(t)
-	handler := &QueryHandler{
-		BibleGatewayClient: &mockBibleGatewayClient{
-			getVerseFunc: func(book, chapter, verse, version string) (string, error) {
-				return "For God so loved the world...", nil
-			},
+
+	mockP := &MockProvider{
+		getVerseFunc: func(book, chapter, verse, version string) (string, error) {
+			return "For God so loved the world...", nil
 		},
-		VersionManager: vm,
-		ProviderName:   "biblegateway",
+	}
+
+	pm := bible.NewProviderManager(mockP)
+	pm.RegisterProvider(bible.DefaultProviderName, mockP)
+	pm.RegisterProvider(bible.DefaultProviderName, mockP)
+
+	handler := &QueryHandler{
+		ProviderManager: pm,
+		VersionManager:  vm,
 	}
 
 	reqBody := `{
@@ -88,16 +109,21 @@ func TestHandleVerseQuery(t *testing.T) {
 
 func TestHandleWordSearchQuery(t *testing.T) {
 	vm := createTestVersionManager(t)
-	handler := &QueryHandler{
-		BibleGatewayClient: &mockBibleGatewayClient{
-			searchWordsFunc: func(query, version string) ([]bible.SearchResult, error) {
-				return []bible.SearchResult{
-					{Verse: "Romans 3:24", URL: "http://example.com/romans3:24"},
-				}, nil
-			},
+
+	mockP := &MockProvider{
+		searchWordsFunc: func(query, version string) ([]bible.SearchResult, error) {
+			return []bible.SearchResult{
+				{Verse: "Romans 3:24", URL: "http://example.com/romans3:24"},
+			}, nil
 		},
-		VersionManager: vm,
-		ProviderName:   "biblegateway",
+	}
+
+	pm := bible.NewProviderManager(mockP)
+	pm.RegisterProvider("biblegateway", mockP)
+
+	handler := &QueryHandler{
+		ProviderManager: pm,
+		VersionManager:  vm,
 	}
 
 	reqBody := `{
@@ -141,14 +167,21 @@ func (m *mockChatService) Process(ctx context.Context, req chat.Request) (chat.R
 
 func TestHandlePromptQuery(t *testing.T) {
 	vm := createTestVersionManager(t)
+
+	// We don't need real provider here as ChatService is mocked
+	pm := bible.NewProviderManager(nil)
+
 	handler := &QueryHandler{
 		ChatService: &mockChatService{
 			processFunc: func(ctx context.Context, req chat.Request) (chat.Response, error) {
+				if req.Provider != bible.DefaultProviderName {
+					return nil, &http.MaxBytesError{} // Indicate failure
+				}
 				return chat.Response{"text": "Jesus fed 5,000 men."}, nil
 			},
 		},
-		VersionManager: vm,
-		ProviderName:   "biblegateway",
+		VersionManager:  vm,
+		ProviderManager: pm,
 	}
 
 	reqBody := `{
@@ -185,6 +218,8 @@ func TestHandlePromptQuery(t *testing.T) {
 
 func TestHandlePromptQuery_WithContext(t *testing.T) {
 	vm := createTestVersionManager(t)
+	pm := bible.NewProviderManager(nil)
+
 	handler := &QueryHandler{
 		ChatService: &mockChatService{
 			processFunc: func(ctx context.Context, req chat.Request) (chat.Response, error) {
@@ -194,8 +229,8 @@ func TestHandlePromptQuery_WithContext(t *testing.T) {
 				return chat.Response{"response": "ok"}, nil
 			},
 		},
-		VersionManager: vm,
-		ProviderName:   "biblegateway",
+		VersionManager:  vm,
+		ProviderManager: pm,
 	}
 
 	reqBody := `{
@@ -278,18 +313,21 @@ func TestInvalidRequest_NoQuery(t *testing.T) {
 
 func TestHandleVerseQuery_BookWithSpaces(t *testing.T) {
 	vm := createTestVersionManager(t)
-	handler := &QueryHandler{
-		BibleGatewayClient: &mockBibleGatewayClient{
-			getVerseFunc: func(book, chapter, verse, version string) (string, error) {
-				// Check if the book name with spaces was parsed correctly
-				if book != "1 John" || chapter != "1" || verse != "9" {
-					return "", nil // Or error
-				}
-				return "If we confess our sins...", nil
-			},
+	mockP := &MockProvider{
+		getVerseFunc: func(book, chapter, verse, version string) (string, error) {
+			// Check if the book name with spaces was parsed correctly
+			if book != "1 John" || chapter != "1" || verse != "9" {
+				return "", nil // Or error
+			}
+			return "If we confess our sins...", nil
 		},
-		VersionManager: vm,
-		ProviderName:   "biblegateway",
+	}
+	pm := bible.NewProviderManager(mockP)
+	pm.RegisterProvider(bible.DefaultProviderName, mockP)
+
+	handler := &QueryHandler{
+		ProviderManager: pm,
+		VersionManager:  vm,
 	}
 
 	reqBody := `{
@@ -322,8 +360,8 @@ func TestHandleVerseQuery_BookWithSpaces(t *testing.T) {
 func TestNewQueryHandler(t *testing.T) {
 	vm := createTestVersionManager(t)
 	handler := NewQueryHandler(&secrets.EnvClient{}, vm)
-	if handler.BibleGatewayClient == nil {
-		t.Error("expected BibleGatewayClient to be initialized")
+	if handler.ProviderManager == nil {
+		t.Error("expected ProviderManager to be initialized")
 	}
 	if handler.GetLLMClient == nil {
 		t.Error("expected GetLLMClient to be initialized")
@@ -338,14 +376,17 @@ func TestNewQueryHandler(t *testing.T) {
 
 func TestHandleVerseQuery_Error(t *testing.T) {
 	vm := createTestVersionManager(t)
-	handler := &QueryHandler{
-		BibleGatewayClient: &mockBibleGatewayClient{
-			getVerseFunc: func(book, chapter, verse, version string) (string, error) {
-				return "", &http.MaxBytesError{}
-			},
+	mockP := &MockProvider{
+		getVerseFunc: func(book, chapter, verse, version string) (string, error) {
+			return "", &http.MaxBytesError{}
 		},
-		VersionManager: vm,
-		ProviderName:   "biblegateway",
+	}
+	pm := bible.NewProviderManager(mockP)
+	pm.RegisterProvider(bible.DefaultProviderName, mockP)
+
+	handler := &QueryHandler{
+		ProviderManager: pm,
+		VersionManager:  vm,
 	}
 
 	reqBody := `{
@@ -366,14 +407,17 @@ func TestHandleVerseQuery_Error(t *testing.T) {
 
 func TestHandleWordSearchQuery_Error(t *testing.T) {
 	vm := createTestVersionManager(t)
-	handler := &QueryHandler{
-		BibleGatewayClient: &mockBibleGatewayClient{
-			searchWordsFunc: func(query, version string) ([]bible.SearchResult, error) {
-				return nil, &http.MaxBytesError{}
-			},
+	mockP := &MockProvider{
+		searchWordsFunc: func(query, version string) ([]bible.SearchResult, error) {
+			return nil, &http.MaxBytesError{}
 		},
-		VersionManager: vm,
-		ProviderName:   "biblegateway",
+	}
+	pm := bible.NewProviderManager(mockP)
+	pm.RegisterProvider(bible.DefaultProviderName, mockP)
+
+	handler := &QueryHandler{
+		ProviderManager: pm,
+		VersionManager:  vm,
 	}
 
 	reqBody := `{
@@ -394,14 +438,16 @@ func TestHandleWordSearchQuery_Error(t *testing.T) {
 
 func TestHandlePromptQuery_Error(t *testing.T) {
 	vm := createTestVersionManager(t)
+	pm := bible.NewProviderManager(nil)
+
 	handler := &QueryHandler{
 		ChatService: &mockChatService{
 			processFunc: func(ctx context.Context, req chat.Request) (chat.Response, error) {
 				return nil, &http.MaxBytesError{}
 			},
 		},
-		VersionManager: vm,
-		ProviderName:   "biblegateway",
+		VersionManager:  vm,
+		ProviderManager: pm,
 	}
 
 	reqBody := `{
