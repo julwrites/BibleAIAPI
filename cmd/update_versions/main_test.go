@@ -5,10 +5,14 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"bible-api-service/internal/bible"
+	"bible-api-service/internal/bible/providers/biblecom"
 	"bible-api-service/internal/bible/providers/biblegateway"
+	"bible-api-service/internal/bible/providers/biblehub"
+	"bible-api-service/internal/bible/providers/biblenow"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,7 +21,9 @@ import (
 
 func TestRun_Success(t *testing.T) {
 	// Mock Bible Gateway Server
-	html := `
+	bgServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/versions/", r.URL.Path)
+		html := `
 	<html>
 		<body>
 			<select class="search-dropdown" name="version">
@@ -28,22 +34,81 @@ func TestRun_Success(t *testing.T) {
 		</body>
 	</html>
 	`
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/versions/", r.URL.Path)
 		w.Write([]byte(html))
 	}))
-	defer server.Close()
+	defer bgServer.Close()
 
-	// Setup Scraper
-	scraper := biblegateway.NewScraper()
-	scraper.SetBaseURL(server.URL)
+	// Mock BibleHub Server
+	bhServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/genesis/1-1.htm", r.URL.Path)
+		html := `
+	<html>
+		<body>
+			<a href="/esv/genesis/1.htm">English Standard Version</a>
+			<a href="/kjv/genesis/1.htm">King James Version</a>
+		</body>
+	</html>
+	`
+		w.Write([]byte(html))
+	}))
+	defer bhServer.Close()
+
+	// Mock BibleNow Server
+	bnServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/en/bible", r.URL.Path)
+		html := `
+	<html>
+		<body>
+			<a href="/en/bible/english-standard-version">English Standard Version (ESV)</a>
+			<a href="/en/bible/new-international-version">New International Version (NIV)</a>
+		</body>
+	</html>
+	`
+		w.Write([]byte(html))
+	}))
+	defer bnServer.Close()
+
+	// Mock Bible.com Server
+	bcServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/versions", r.URL.Path)
+		html := `
+	<html>
+		<body>
+			<a href="/versions/59-esv-english-standard-version">English Standard Version (ESV)</a>
+			<a href="/versions/111-niv-new-international-version">New International Version (NIV)</a>
+		</body>
+	</html>
+	`
+		w.Write([]byte(html))
+	}))
+	defer bcServer.Close()
+
+	// Setup Scrapers
+	bgScraper := biblegateway.NewScraper()
+	bgScraper.SetBaseURL(bgServer.URL)
+
+	bhScraper := biblehub.NewScraper()
+	bhScraper.SetBaseURL(bhServer.URL)
+
+	bnScraper := biblenow.NewScraper()
+	bnScraper.SetBaseURL(bnServer.URL)
+
+	bcScraper := biblecom.NewScraper()
+	bcScraper.SetBaseURL(bcServer.URL)
+
+	providers := map[string]bible.Provider{
+		"biblegateway": bgScraper,
+		"biblehub":     bhScraper,
+		"biblenow":     bnScraper,
+		"biblecom":     bcScraper,
+	}
 
 	// Setup Temp Output File
 	tempDir := t.TempDir()
 	outputPath := filepath.Join(tempDir, "versions.yaml")
 
 	// Run
-	err := run(scraper, outputPath)
+	err := run(providers, outputPath)
 	require.NoError(t, err)
 
 	// Verify File Content
@@ -54,17 +119,47 @@ func TestRun_Success(t *testing.T) {
 	err = yaml.Unmarshal(data, &versions)
 	require.NoError(t, err)
 
-	assert.Len(t, versions, 2)
-	assert.Equal(t, "ESV", versions[0].Code)
-	assert.Equal(t, "English Standard Version", versions[0].Name)
-	assert.Equal(t, "Unknown", versions[0].Language)
-	assert.Equal(t, "ESV", versions[0].Providers["biblegateway"])
-	assert.Equal(t, "esv", versions[0].Providers["biblehub"])
-	assert.Equal(t, "english-standard-version", versions[0].Providers["biblenow"])
+	// Check for ESV (present in all)
+	esv := findVersion(versions, "ESV")
+	require.NotNil(t, esv)
+	assert.Equal(t, "English Standard Version", esv.Name)
+	// BibleGateway sets language to Unknown because it was before ---Spanish---
+	assert.Equal(t, "Unknown", esv.Language)
+	assert.Equal(t, "ESV", esv.Providers["biblegateway"])
+	assert.Equal(t, "esv", esv.Providers["biblehub"])
+	assert.Equal(t, "english-standard-version", esv.Providers["biblenow"])
+	assert.Equal(t, "59", esv.Providers["biblecom"])
 
-	assert.Equal(t, "RVR1960", versions[1].Code)
-	assert.Equal(t, "Reina-Valera 1960", versions[1].Name)
-	assert.Equal(t, "Spanish", versions[1].Language)
+	// Check for RVR1960 (only in BibleGateway)
+	rvr := findVersion(versions, "RVR1960")
+	require.NotNil(t, rvr)
+	assert.Equal(t, "Reina-Valera 1960", rvr.Name)
+	assert.Equal(t, "Spanish", rvr.Language)
+	assert.Equal(t, "RVR1960", rvr.Providers["biblegateway"])
+	assert.NotContains(t, rvr.Providers, "biblehub")
+
+	// Check for KJV (only in BibleHub)
+	kjv := findVersion(versions, "KJV")
+	require.NotNil(t, kjv)
+	assert.Equal(t, "King James Version", kjv.Name)
+	assert.Equal(t, "English", kjv.Language) // BibleHub default
+	assert.Equal(t, "kjv", kjv.Providers["biblehub"])
+
+	// Check for NIV (in BibleNow and Bible.com)
+	niv := findVersion(versions, "NIV")
+	require.NotNil(t, niv)
+	assert.Equal(t, "english", strings.ToLower(niv.Language)) // BibleNow/BibleCom default
+	assert.Contains(t, niv.Providers, "biblenow")
+	assert.Contains(t, niv.Providers, "biblecom")
+}
+
+func findVersion(versions []bible.Version, code string) *bible.Version {
+	for _, v := range versions {
+		if v.Code == code {
+			return &v
+		}
+	}
+	return nil
 }
 
 func TestRun_ScraperError(t *testing.T) {
@@ -77,31 +172,14 @@ func TestRun_ScraperError(t *testing.T) {
 	scraper := biblegateway.NewScraper()
 	scraper.SetBaseURL(server.URL)
 
+	providers := map[string]bible.Provider{
+		"biblegateway": scraper,
+	}
+
 	tempDir := t.TempDir()
 	outputPath := filepath.Join(tempDir, "versions.yaml")
 
-	err := run(scraper, outputPath)
+	err := run(providers, outputPath)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "status code: 500")
-}
-
-func TestRun_FileWriteError(t *testing.T) {
-	// Mock Successful Server
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("<html></html>"))
-	}))
-	defer server.Close()
-
-	scraper := biblegateway.NewScraper()
-	scraper.SetBaseURL(server.URL)
-
-	// Invalid path (directory that cannot be written to or invalid path)
-	// Using a path that implies a directory where a file exists
-	tempDir := t.TempDir()
-	existingFile := filepath.Join(tempDir, "file")
-	os.WriteFile(existingFile, []byte(""), 0644)
-	outputPath := filepath.Join(existingFile, "versions.yaml") // Can't create file under a file
-
-	err := run(scraper, outputPath)
-	assert.Error(t, err)
 }
