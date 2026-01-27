@@ -7,6 +7,14 @@ type SearchResult struct {
 	URL   string `json:"url"`
 }
 
+// ProviderVersion represents a Bible version provided by a scraping source.
+type ProviderVersion struct {
+	Name     string `json:"name"`
+	Value    string `json:"value"`
+	Code     string `json:"code"`
+	Language string `json:"language"`
+}
+
 // Provider defines the interface for a Bible data provider.
 type Provider interface {
 	// GetVerse fetches a single Bible verse or passage by reference.
@@ -15,4 +23,7 @@ type Provider interface {
 
 	// SearchWords searches for a word or phrase and returns a list of relevant verses.
 	SearchWords(query, version string) ([]SearchResult, error)
+
+	// GetVersions fetches the list of available Bible versions.
+	GetVersions() ([]ProviderVersion, error)
 }

@@ -9,6 +9,7 @@ import (
 type MockProvider struct {
 	GetVerseFunc    func(book, chapter, verse, version string) (string, error)
 	SearchWordsFunc func(query, version string) ([]SearchResult, error)
+	GetVersionsFunc func() ([]ProviderVersion, error)
 }
 
 func (m *MockProvider) GetVerse(book, chapter, verse, version string) (string, error) {
@@ -21,6 +22,13 @@ func (m *MockProvider) GetVerse(book, chapter, verse, version string) (string, e
 func (m *MockProvider) SearchWords(query, version string) ([]SearchResult, error) {
 	if m.SearchWordsFunc != nil {
 		return m.SearchWordsFunc(query, version)
+	}
+	return nil, nil
+}
+
+func (m *MockProvider) GetVersions() ([]ProviderVersion, error) {
+	if m.GetVersionsFunc != nil {
+		return m.GetVersionsFunc()
 	}
 	return nil, nil
 }

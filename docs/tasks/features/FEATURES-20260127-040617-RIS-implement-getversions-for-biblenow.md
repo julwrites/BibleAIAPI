@@ -1,6 +1,6 @@
 ---
 id: FEATURES-20260127-040617-RIS
-status: pending
+status: completed
 title: Implement GetVersions for BibleNow
 priority: medium
 created: 2026-01-27 04:06:17

@@ -1,6 +1,6 @@
 ---
 id: FEATURES-20260127-040629-COZ
-status: pending
+status: completed
 title: Implement GetVersions for BibleHub
 priority: medium
 created: 2026-01-27 04:06:29
