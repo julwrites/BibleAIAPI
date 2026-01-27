@@ -9,7 +9,11 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 type mockBibleGatewayClient struct {
@@ -25,13 +29,34 @@ func (m *mockBibleGatewayClient) SearchWords(query, version string) ([]bible.Sea
 	return m.searchWordsFunc(query, version)
 }
 
+func createTestVersionManager(t *testing.T) *bible.VersionManager {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "versions.yaml")
+	content := `
+- code: ESV
+  name: English Standard Version
+  language: English
+  providers:
+    biblegateway: ESV
+`
+	err := os.WriteFile(configPath, []byte(content), 0644)
+	require.NoError(t, err)
+
+	vm, err := bible.NewVersionManager(configPath)
+	require.NoError(t, err)
+	return vm
+}
+
 func TestHandleVerseQuery(t *testing.T) {
+	vm := createTestVersionManager(t)
 	handler := &QueryHandler{
 		BibleGatewayClient: &mockBibleGatewayClient{
 			getVerseFunc: func(book, chapter, verse, version string) (string, error) {
 				return "For God so loved the world...", nil
 			},
 		},
+		VersionManager: vm,
+		ProviderName:   "biblegateway",
 	}
 
 	reqBody := `{
@@ -62,6 +87,7 @@ func TestHandleVerseQuery(t *testing.T) {
 }
 
 func TestHandleWordSearchQuery(t *testing.T) {
+	vm := createTestVersionManager(t)
 	handler := &QueryHandler{
 		BibleGatewayClient: &mockBibleGatewayClient{
 			searchWordsFunc: func(query, version string) ([]bible.SearchResult, error) {
@@ -70,6 +96,8 @@ func TestHandleWordSearchQuery(t *testing.T) {
 				}, nil
 			},
 		},
+		VersionManager: vm,
+		ProviderName:   "biblegateway",
 	}
 
 	reqBody := `{
@@ -112,12 +140,15 @@ func (m *mockChatService) Process(ctx context.Context, req chat.Request) (chat.R
 }
 
 func TestHandlePromptQuery(t *testing.T) {
+	vm := createTestVersionManager(t)
 	handler := &QueryHandler{
 		ChatService: &mockChatService{
 			processFunc: func(ctx context.Context, req chat.Request) (chat.Response, error) {
 				return chat.Response{"text": "Jesus fed 5,000 men."}, nil
 			},
 		},
+		VersionManager: vm,
+		ProviderName:   "biblegateway",
 	}
 
 	reqBody := `{
@@ -153,6 +184,7 @@ func TestHandlePromptQuery(t *testing.T) {
 }
 
 func TestHandlePromptQuery_WithContext(t *testing.T) {
+	vm := createTestVersionManager(t)
 	handler := &QueryHandler{
 		ChatService: &mockChatService{
 			processFunc: func(ctx context.Context, req chat.Request) (chat.Response, error) {
@@ -162,6 +194,8 @@ func TestHandlePromptQuery_WithContext(t *testing.T) {
 				return chat.Response{"response": "ok"}, nil
 			},
 		},
+		VersionManager: vm,
+		ProviderName:   "biblegateway",
 	}
 
 	reqBody := `{
@@ -243,6 +277,7 @@ func TestInvalidRequest_NoQuery(t *testing.T) {
 }
 
 func TestHandleVerseQuery_BookWithSpaces(t *testing.T) {
+	vm := createTestVersionManager(t)
 	handler := &QueryHandler{
 		BibleGatewayClient: &mockBibleGatewayClient{
 			getVerseFunc: func(book, chapter, verse, version string) (string, error) {
@@ -253,6 +288,8 @@ func TestHandleVerseQuery_BookWithSpaces(t *testing.T) {
 				return "If we confess our sins...", nil
 			},
 		},
+		VersionManager: vm,
+		ProviderName:   "biblegateway",
 	}
 
 	reqBody := `{
@@ -283,7 +320,8 @@ func TestHandleVerseQuery_BookWithSpaces(t *testing.T) {
 }
 
 func TestNewQueryHandler(t *testing.T) {
-	handler := NewQueryHandler(&secrets.EnvClient{})
+	vm := createTestVersionManager(t)
+	handler := NewQueryHandler(&secrets.EnvClient{}, vm)
 	if handler.BibleGatewayClient == nil {
 		t.Error("expected BibleGatewayClient to be initialized")
 	}
@@ -293,15 +331,21 @@ func TestNewQueryHandler(t *testing.T) {
 	if handler.FFClient == nil {
 		t.Error("expected FFClient to be initialized")
 	}
+	if handler.VersionManager == nil {
+		t.Error("expected VersionManager to be initialized")
+	}
 }
 
 func TestHandleVerseQuery_Error(t *testing.T) {
+	vm := createTestVersionManager(t)
 	handler := &QueryHandler{
 		BibleGatewayClient: &mockBibleGatewayClient{
 			getVerseFunc: func(book, chapter, verse, version string) (string, error) {
 				return "", &http.MaxBytesError{}
 			},
 		},
+		VersionManager: vm,
+		ProviderName:   "biblegateway",
 	}
 
 	reqBody := `{
@@ -321,12 +365,15 @@ func TestHandleVerseQuery_Error(t *testing.T) {
 }
 
 func TestHandleWordSearchQuery_Error(t *testing.T) {
+	vm := createTestVersionManager(t)
 	handler := &QueryHandler{
 		BibleGatewayClient: &mockBibleGatewayClient{
 			searchWordsFunc: func(query, version string) ([]bible.SearchResult, error) {
 				return nil, &http.MaxBytesError{}
 			},
 		},
+		VersionManager: vm,
+		ProviderName:   "biblegateway",
 	}
 
 	reqBody := `{
@@ -346,12 +393,15 @@ func TestHandleWordSearchQuery_Error(t *testing.T) {
 }
 
 func TestHandlePromptQuery_Error(t *testing.T) {
+	vm := createTestVersionManager(t)
 	handler := &QueryHandler{
 		ChatService: &mockChatService{
 			processFunc: func(ctx context.Context, req chat.Request) (chat.Response, error) {
 				return nil, &http.MaxBytesError{}
 			},
 		},
+		VersionManager: vm,
+		ProviderName:   "biblegateway",
 	}
 
 	reqBody := `{

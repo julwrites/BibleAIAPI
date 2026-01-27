@@ -4,22 +4,41 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
+	"bible-api-service/internal/bible"
 	"bible-api-service/internal/bible/providers/biblegateway"
+	"bible-api-service/internal/bible/providers/biblenow"
 
 	"gopkg.in/yaml.v2"
 )
 
 func run(scraper *biblegateway.Scraper, outputPath string) error {
 	log.Println("Fetching Bible versions...")
-	versions, err := scraper.GetVersions()
+	bgVersions, err := scraper.GetVersions()
 	if err != nil {
 		return err
 	}
 
-	log.Printf("Found %d versions. Writing to %s...", len(versions), outputPath)
+	log.Printf("Found %d versions from Bible Gateway. Generating unified list...", len(bgVersions))
 
-	data, err := yaml.Marshal(versions)
+	var unifiedVersions []bible.Version
+
+	for _, v := range bgVersions {
+		uv := bible.Version{
+			Code:     v.Value,
+			Name:     v.Name,
+			Language: v.Language,
+			Providers: map[string]string{
+				"biblegateway": v.Value,
+				"biblehub":     strings.ToLower(v.Value),
+				"biblenow":     biblenow.GetVersionSlug(v.Value),
+			},
+		}
+		unifiedVersions = append(unifiedVersions, uv)
+	}
+
+	data, err := yaml.Marshal(unifiedVersions)
 	if err != nil {
 		return err
 	}
@@ -34,7 +53,7 @@ func run(scraper *biblegateway.Scraper, outputPath string) error {
 		return err
 	}
 
-	log.Printf("Successfully updated %s", outputPath)
+	log.Printf("Successfully updated %s with %d versions", outputPath, len(unifiedVersions))
 	return nil
 }
 

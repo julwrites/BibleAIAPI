@@ -1,13 +1,13 @@
 package tests
 
 import (
+	"bible-api-service/internal/bible"
+	"bible-api-service/internal/handlers"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
-
-	"bible-api-service/internal/handlers"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -17,13 +17,13 @@ func setupVersionsHandler(t *testing.T) http.Handler {
 	// Create a temporary versions.yaml for testing
 	content := []byte(`
 - name: "New International Version (NIV)"
-  value: "NIV"
+  code: "NIV"
   language: "English (EN)"
 - name: "English Standard Version (ESV)"
-  value: "ESV"
+  code: "ESV"
   language: "English (EN)"
 - name: "Reina-Valera 1960 (RVR1960)"
-  value: "RVR1960"
+  code: "RVR1960"
   language: "Español (ES)"
 `)
 	tmpFile, err := os.CreateTemp("", "versions_*.yaml")
@@ -34,21 +34,10 @@ func setupVersionsHandler(t *testing.T) http.Handler {
 	assert.NoError(t, err)
 	tmpFile.Close()
 
-	handler, err := handlers.NewVersionsHandler(tmpFile.Name())
+	vm, err := bible.NewVersionManager(tmpFile.Name())
 	assert.NoError(t, err)
 
-	// Mock secrets client for auth middleware
-	// Since we can't easily mock the internal secrets client structure here without a lot of boilerplate,
-	// and we primarily want to test the handler logic + routing, we can bypass the full auth middleware
-	// logic or set up the environment variable mock if we were using the real one.
-	// However, the main.go uses the real auth middleware.
-	// For integration testing the ENDPOINT logic, testing the handler directly is often sufficient
-	// if we trust the middleware (which is tested elsewhere).
-	// But let's try to simulate the full chain if possible.
-
-	// For this test, let's just test the handler directly to verify filtering/sorting/pagination logic.
-	// Auth middleware integration is covered in other end-to-end tests or assumed standard.
-	// If we must test auth, we'd need to mock the SecretsClient behavior which returns the key.
+	handler := handlers.NewVersionsHandler(vm)
 
 	return handler
 }
@@ -92,7 +81,7 @@ func TestListVersions_Filtering(t *testing.T) {
 	data := result["data"].([]interface{})
 	assert.Len(t, data, 1)
 	item := data[0].(map[string]interface{})
-	assert.Equal(t, "RVR1960", item["value"])
+	assert.Equal(t, "RVR1960", item["code"])
 }
 
 func TestListVersions_Sorting(t *testing.T) {
@@ -114,9 +103,9 @@ func TestListVersions_Sorting(t *testing.T) {
 	assert.Len(t, data, 3)
 
 	// Expected order: ESV, NIV, RVR1960
-	assert.Equal(t, "ESV", data[0].(map[string]interface{})["value"])
-	assert.Equal(t, "NIV", data[1].(map[string]interface{})["value"])
-	assert.Equal(t, "RVR1960", data[2].(map[string]interface{})["value"])
+	assert.Equal(t, "ESV", data[0].(map[string]interface{})["code"])
+	assert.Equal(t, "NIV", data[1].(map[string]interface{})["code"])
+	assert.Equal(t, "RVR1960", data[2].(map[string]interface{})["code"])
 }
 
 func TestListVersions_Auth_Integration(t *testing.T) {

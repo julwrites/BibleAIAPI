@@ -2,37 +2,23 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"sort"
 	"strconv"
 	"strings"
 
-	"bible-api-service/internal/bible/providers/biblegateway"
-
-	"gopkg.in/yaml.v2"
+	"bible-api-service/internal/bible"
 )
 
 // VersionsHandler handles requests for Bible versions.
 type VersionsHandler struct {
-	versions []biblegateway.Version
+	manager *bible.VersionManager
 }
 
-// NewVersionsHandler creates a new VersionsHandler by loading versions from the config file.
-func NewVersionsHandler(configPath string) (*VersionsHandler, error) {
-	data, err := os.ReadFile(configPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read versions config: %w", err)
-	}
-
-	var versions []biblegateway.Version
-	if err := yaml.Unmarshal(data, &versions); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal versions config: %w", err)
-	}
-
-	return &VersionsHandler{versions: versions}, nil
+// NewVersionsHandler creates a new VersionsHandler.
+func NewVersionsHandler(manager *bible.VersionManager) *VersionsHandler {
+	return &VersionsHandler{manager: manager}
 }
 
 // ListVersions handles GET requests to list available Bible versions.
@@ -42,8 +28,10 @@ func (h *VersionsHandler) ListVersions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	versions := h.manager.GetAll()
+
 	// Filter
-	filtered := h.filterVersions(r)
+	filtered := h.filterVersions(versions, r)
 
 	// Sort
 	h.sortVersions(filtered, r)
@@ -70,19 +58,19 @@ func (h *VersionsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.ListVersions(w, r)
 }
 
-func (h *VersionsHandler) filterVersions(r *http.Request) []biblegateway.Version {
+func (h *VersionsHandler) filterVersions(versions []bible.Version, r *http.Request) []bible.Version {
 	nameFilter := strings.ToLower(r.URL.Query().Get("name"))
 	languageFilter := strings.ToLower(r.URL.Query().Get("language"))
 
 	if nameFilter == "" && languageFilter == "" {
 		// Return a copy to avoid modifying the original slice during sort
-		dst := make([]biblegateway.Version, len(h.versions))
-		copy(dst, h.versions)
+		dst := make([]bible.Version, len(versions))
+		copy(dst, versions)
 		return dst
 	}
 
-	var filtered []biblegateway.Version
-	for _, v := range h.versions {
+	var filtered []bible.Version
+	for _, v := range versions {
 		if nameFilter != "" && !strings.Contains(strings.ToLower(v.Name), nameFilter) {
 			continue
 		}
@@ -94,7 +82,7 @@ func (h *VersionsHandler) filterVersions(r *http.Request) []biblegateway.Version
 	return filtered
 }
 
-func (h *VersionsHandler) sortVersions(versions []biblegateway.Version, r *http.Request) {
+func (h *VersionsHandler) sortVersions(versions []bible.Version, r *http.Request) {
 	// Default sort by code (value)
 	sortField := r.URL.Query().Get("sort")
 	if sortField == "" {
@@ -108,12 +96,12 @@ func (h *VersionsHandler) sortVersions(versions []biblegateway.Version, r *http.
 		case "language":
 			return versions[i].Language < versions[j].Language
 		default: // "code"
-			return versions[i].Value < versions[j].Value
+			return versions[i].Code < versions[j].Code
 		}
 	})
 }
 
-func (h *VersionsHandler) paginateVersions(versions []biblegateway.Version, r *http.Request) ([]biblegateway.Version, int, int, int) {
+func (h *VersionsHandler) paginateVersions(versions []bible.Version, r *http.Request) ([]bible.Version, int, int, int) {
 	total := len(versions)
 	pageStr := r.URL.Query().Get("page")
 	limitStr := r.URL.Query().Get("limit")
@@ -130,7 +118,7 @@ func (h *VersionsHandler) paginateVersions(versions []biblegateway.Version, r *h
 
 	start := (page - 1) * limit
 	if start >= total {
-		return []biblegateway.Version{}, total, page, limit
+		return []bible.Version{}, total, page, limit
 	}
 
 	end := start + limit

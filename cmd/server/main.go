@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bible-api-service/internal/bible"
 	"bible-api-service/internal/config"
 	"bible-api-service/internal/handlers"
 	"bible-api-service/internal/middleware"
@@ -32,17 +33,20 @@ func main() {
 
 	authMiddleware := middleware.NewAuthMiddleware(secretsClient)
 
-	// Register Routes
-	queryHandler := handlers.NewQueryHandler(secretsClient)
-
 	versionsConfigPath := os.Getenv("VERSIONS_CONFIG_PATH")
 	if versionsConfigPath == "" {
 		versionsConfigPath = "configs/versions.yaml"
 	}
-	versionsHandler, err := handlers.NewVersionsHandler(versionsConfigPath)
+
+	versionManager, err := bible.NewVersionManager(versionsConfigPath)
 	if err != nil {
-		log.Fatalf("could not initialize versions handler: %v", err)
+		log.Fatalf("could not initialize version manager: %v", err)
 	}
+
+	// Register Routes
+	queryHandler := handlers.NewQueryHandler(secretsClient, versionManager)
+
+	versionsHandler := handlers.NewVersionsHandler(versionManager)
 
 	http.Handle("/query", middleware.Logging(authMiddleware.APIKeyAuth(queryHandler)))
 	// Apply auth middleware to maintain security consistency

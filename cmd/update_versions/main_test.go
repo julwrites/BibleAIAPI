@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"bible-api-service/internal/bible"
 	"bible-api-service/internal/bible/providers/biblegateway"
 
 	"github.com/stretchr/testify/assert"
@@ -49,16 +50,19 @@ func TestRun_Success(t *testing.T) {
 	data, err := os.ReadFile(outputPath)
 	require.NoError(t, err)
 
-	var versions []biblegateway.Version
+	var versions []bible.Version
 	err = yaml.Unmarshal(data, &versions)
 	require.NoError(t, err)
 
 	assert.Len(t, versions, 2)
-	assert.Equal(t, "ESV", versions[0].Value)
+	assert.Equal(t, "ESV", versions[0].Code)
 	assert.Equal(t, "English Standard Version", versions[0].Name)
 	assert.Equal(t, "Unknown", versions[0].Language)
+	assert.Equal(t, "ESV", versions[0].Providers["biblegateway"])
+	assert.Equal(t, "esv", versions[0].Providers["biblehub"])
+	assert.Equal(t, "english-standard-version", versions[0].Providers["biblenow"])
 
-	assert.Equal(t, "RVR1960", versions[1].Value)
+	assert.Equal(t, "RVR1960", versions[1].Code)
 	assert.Equal(t, "Reina-Valera 1960", versions[1].Name)
 	assert.Equal(t, "Spanish", versions[1].Language)
 }
