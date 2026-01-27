@@ -109,7 +109,7 @@ func (s *ChatService) Process(ctx context.Context, req Request) (Response, error
 	}
 
 	// 6. Require the llm response to be structured output
-	llmResponse, err := llmClient.Query(ctx, llmPrompt, req.Schema)
+	llmResponse, _, err := llmClient.Query(ctx, llmPrompt, req.Schema)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query llm: %w", err)
 	}

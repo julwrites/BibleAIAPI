@@ -33,10 +33,10 @@ func NewClient(ctx context.Context, secretsClient secrets.Client) (provider.LLMC
 	return NewOpenAI(llm), nil
 }
 
-func (c *OpenAIClient) Query(ctx context.Context, prompt string, schemaJSON string) (string, error) {
+func (c *OpenAIClient) Query(ctx context.Context, prompt string, schemaJSON string) (string, string, error) {
 	var toolSchema llms.FunctionDefinition
 	if err := json.Unmarshal([]byte(schemaJSON), &toolSchema); err != nil {
-		return "", err
+		return "", "openai", err
 	}
 
 	messages := []llms.MessageContent{
@@ -59,12 +59,20 @@ func (c *OpenAIClient) Query(ctx context.Context, prompt string, schemaJSON stri
 		llms.WithToolChoice("required"),
 	)
 	if err != nil {
-		return "", err
+		return "", "openai", err
 	}
 
 	if len(completion.Choices) == 0 || len(completion.Choices[0].ToolCalls) == 0 {
-		return "", errors.New("no tool call found in LLM response")
+		return "", "openai", errors.New("no tool call found in LLM response")
 	}
 
-	return completion.Choices[0].ToolCalls[0].FunctionCall.Arguments, nil
+	return completion.Choices[0].ToolCalls[0].FunctionCall.Arguments, "openai", nil
+}
+
+func (c *OpenAIClient) Stream(ctx context.Context, prompt string) (<-chan string, string, error) {
+	return nil, "openai", errors.New("not implemented")
+}
+
+func (c *OpenAIClient) Name() string {
+	return "openai"
 }

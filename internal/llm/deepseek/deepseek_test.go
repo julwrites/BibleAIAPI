@@ -101,10 +101,13 @@ func TestDeepseekClient_Query(t *testing.T) {
 			}
 			client := NewDeepseek(mock)
 
-			value, err := client.Query(context.Background(), tt.prompt, tt.schema)
+			value, providerName, err := client.Query(context.Background(), tt.prompt, tt.schema)
 
 			if value != tt.expectedValue {
 				t.Errorf("unexpected value: got %q, want %q", value, tt.expectedValue)
+			}
+			if err == nil && providerName != "deepseek" {
+				t.Errorf("unexpected provider name: got %q, want %q", providerName, "deepseek")
 			}
 
 			if !cmp.Equal(err, tt.expectedError, cmp.Comparer(func(x, y error) bool {

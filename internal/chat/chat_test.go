@@ -56,9 +56,22 @@ type MockLLMClient struct {
 	mock.Mock
 }
 
-func (m *MockLLMClient) Query(ctx context.Context, prompt, schema string) (string, error) {
+func (m *MockLLMClient) Query(ctx context.Context, prompt, schema string) (string, string, error) {
 	args := m.Called(ctx, prompt, schema)
-	return args.String(0), args.Error(1)
+	return args.String(0), args.String(1), args.Error(2)
+}
+
+func (m *MockLLMClient) Stream(ctx context.Context, prompt string) (<-chan string, string, error) {
+	args := m.Called(ctx, prompt)
+	if args.Get(0) == nil {
+		return nil, args.String(1), args.Error(2)
+	}
+	return args.Get(0).(<-chan string), args.String(1), args.Error(2)
+}
+
+func (m *MockLLMClient) Name() string {
+	args := m.Called()
+	return args.String(0)
 }
 
 func TestChatService_Process_Success(t *testing.T) {
@@ -91,7 +104,7 @@ func TestChatService_Process_Success(t *testing.T) {
 
 	mockLLMClient.On("Query", mock.Anything, mock.MatchedBy(func(prompt string) bool {
 		return strings.Contains(prompt, expectedPromptPart) && strings.Contains(prompt, expectedInstruction)
-	}), req.Schema).Return(`{"explanation": "It means God loves everyone."}`, nil)
+	}), req.Schema).Return(`{"explanation": "It means God loves everyone."}`, "mock-provider", nil)
 
 	resp, err := chatService.Process(context.Background(), req)
 
@@ -147,7 +160,7 @@ func TestChatService_Process_VersesAndWords(t *testing.T) {
 			strings.Contains(prompt, expectedPromptPart1) &&
 			strings.Contains(prompt, expectedPromptPart2) &&
 			strings.Contains(prompt, expectedInstruction)
-	}), req.Schema).Return(`{"response": "Both are relevant."}`, nil)
+	}), req.Schema).Return(`{"response": "Both are relevant."}`, "mock-provider", nil)
 
 	resp, err := chatService.Process(context.Background(), req)
 
@@ -192,7 +205,7 @@ func TestChatService_Process_WithWords(t *testing.T) {
 
 	mockLLMClient.On("Query", mock.Anything, mock.MatchedBy(func(prompt string) bool {
 		return strings.Contains(prompt, expectedPromptPart) && strings.Contains(prompt, expectedInstruction)
-	}), req.Schema).Return(`{"summary": "Grace saves."}`, nil)
+	}), req.Schema).Return(`{"summary": "Grace saves."}`, "mock-provider", nil)
 
 	resp, err := chatService.Process(context.Background(), req)
 
@@ -234,7 +247,7 @@ func TestChatService_Process_BookWithSpace(t *testing.T) {
 
 	mockLLMClient.On("Query", mock.Anything, mock.MatchedBy(func(prompt string) bool {
 		return strings.Contains(prompt, expectedPromptPart) && strings.Contains(prompt, expectedInstruction)
-	}), req.Schema).Return(`{"explanation": "It is about sacrificial love."}`, nil)
+	}), req.Schema).Return(`{"explanation": "It is about sacrificial love."}`, "mock-provider", nil)
 
 	resp, err := chatService.Process(context.Background(), req)
 
@@ -296,7 +309,7 @@ func TestChatService_Process_LLMError(t *testing.T) {
 
 	mockRegistry.On("GetProvider", "biblegateway").Return(mockProvider, nil)
 	mockProvider.On("GetVerse", "John", "3", "16", "NIV").Return("<p>For God so loved the world...</p>", nil)
-	mockLLMClient.On("Query", mock.Anything, mock.Anything, mock.Anything).Return("", errors.New("LLM failed"))
+	mockLLMClient.On("Query", mock.Anything, mock.Anything, mock.Anything).Return("", "", errors.New("LLM failed"))
 
 	_, err := chatService.Process(context.Background(), req)
 
