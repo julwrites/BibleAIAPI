@@ -44,10 +44,16 @@ func (s *Scraper) GetVersions() ([]bible.ProviderVersion, error) {
 	// Regex to match version links: /en/bible/{slug}
 	// Note: We want to avoid links that go deeper like /en/bible/{slug}/{book}
 
-	doc.Find("a").Each(func(i int, s *goquery.Selection) {
-		href, exists := s.Attr("href")
+	doc.Find("a").Each(func(i int, sel *goquery.Selection) {
+		href, exists := sel.Attr("href")
 		if !exists {
 			return
+		}
+
+		// Normalize href to handle absolute URLs
+		// The site uses https://biblenow.net/en/bible/...
+		if strings.HasPrefix(href, s.baseURL) {
+			href = strings.TrimPrefix(href, s.baseURL)
 		}
 
 		// Check if it's a version link
@@ -71,7 +77,7 @@ func (s *Scraper) GetVersions() ([]bible.ProviderVersion, error) {
 			return
 		}
 
-		text := strings.TrimSpace(s.Text())
+		text := strings.TrimSpace(sel.Text())
 		if text == "" {
 			return
 		}
