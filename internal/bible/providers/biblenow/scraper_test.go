@@ -66,3 +66,30 @@ func TestScraper_SearchWords(t *testing.T) {
 		t.Error("expected error for SearchWords, got nil")
 	}
 }
+
+func TestGetVersionSlug(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"KJV", "king-james-version"},
+		{"ESV", "english-standard-version"},
+		{"NIV", "new-international-version"},
+		{"NKJV", "new-king-james-version"},
+		{"ASV", "american-standard-version"},
+		{"NASB", "new-american-standard-bible"},
+		{"NLT", "new-living-translation"},
+		{"WEB", "web"}, // lowercase default
+		{"Unknown Version", "unknown-version"}, // slugify
+		{"UPPERCASE", "uppercase"},
+		{"CamelCase", "camelcase"},
+		{"Space Version", "space-version"},
+	}
+
+	for _, tt := range tests {
+		got := GetVersionSlug(tt.input)
+		if got != tt.expected {
+			t.Errorf("GetVersionSlug(%q) = %q, want %q", tt.input, got, tt.expected)
+		}
+	}
+}

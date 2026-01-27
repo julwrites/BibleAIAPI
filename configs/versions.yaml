@@ -1447,13 +1447,6 @@
     biblegateway: ADB1905
     biblehub: adb1905
     biblenow: adb1905
-- code: SND
-  name: Ang Salita ng Diyos (SND)
-  language: Tagalog (TL)
-  providers:
-    biblegateway: SND
-    biblehub: snd
-    biblenow: snd
 - code: ASND
   name: Ang Salita ng Dios (Tagalog Contemporary Bible) (ASND)
   language: Tagalog (TL)
@@ -1461,6 +1454,13 @@
     biblegateway: ASND
     biblehub: asnd
     biblenow: asnd
+- code: SND
+  name: Ang Salita ng Diyos (SND)
+  language: Tagalog (TL)
+  providers:
+    biblegateway: SND
+    biblehub: snd
+    biblenow: snd
 - code: MBBTAG
   name: Magandang Balita Biblia (MBBTAG)
   language: Tagalog (TL)
