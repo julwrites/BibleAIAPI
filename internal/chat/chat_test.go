@@ -12,22 +12,43 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-// MockBibleGatewayClient is a mock type for the BibleGatewayClient interface
-type MockBibleGatewayClient struct {
+// MockProvider is a mock type for bible.Provider
+type MockProvider struct {
 	mock.Mock
 }
 
-func (m *MockBibleGatewayClient) GetVerse(book, chapter, verse, version string) (string, error) {
+func (m *MockProvider) GetVerse(book, chapter, verse, version string) (string, error) {
 	args := m.Called(book, chapter, verse, version)
 	return args.String(0), args.Error(1)
 }
 
-func (m *MockBibleGatewayClient) SearchWords(query, version string) ([]bible.SearchResult, error) {
+func (m *MockProvider) SearchWords(query, version string) ([]bible.SearchResult, error) {
 	args := m.Called(query, version)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
 	return args.Get(0).([]bible.SearchResult), args.Error(1)
+}
+
+func (m *MockProvider) GetVersions() ([]bible.ProviderVersion, error) {
+	args := m.Called()
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]bible.ProviderVersion), args.Error(1)
+}
+
+// MockBibleProviderRegistry is a mock type for the BibleProviderRegistry interface
+type MockBibleProviderRegistry struct {
+	mock.Mock
+}
+
+func (m *MockBibleProviderRegistry) GetProvider(name string) (bible.Provider, error) {
+	args := m.Called(name)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(bible.Provider), args.Error(1)
 }
 
 // MockLLMClient is a mock type for the LLMClient interface
@@ -41,24 +62,28 @@ func (m *MockLLMClient) Query(ctx context.Context, prompt, schema string) (strin
 }
 
 func TestChatService_Process_Success(t *testing.T) {
-	mockBgClient := new(MockBibleGatewayClient)
+	mockRegistry := new(MockBibleProviderRegistry)
+	mockProvider := new(MockProvider)
 	mockLLMClient := new(MockLLMClient)
 
 	mockGetLLMClient := func() (provider.LLMClient, error) {
 		return mockLLMClient, nil
 	}
 
-	chatService := NewChatService(mockBgClient, mockGetLLMClient)
+	chatService := NewChatService(mockRegistry, mockGetLLMClient)
 
 	req := Request{
 		VerseRefs: []string{"John 3:16"},
 		Version:   "NIV",
+		Provider:  "biblegateway",
 		Prompt:    "Explain this verse.",
 		Schema:    `{"type": "object", "properties": {"explanation": {"type": "string"}}}`,
 	}
 
+	mockRegistry.On("GetProvider", "biblegateway").Return(mockProvider, nil)
+
 	verseHTML := "<h1>John 3:16</h1><p>For God so loved the world...</p>"
-	mockBgClient.On("GetVerse", "John", "3", "16", "NIV").Return(verseHTML, nil)
+	mockProvider.On("GetVerse", "John", "3", "16", "NIV").Return(verseHTML, nil)
 
 	// Expect the prompt to contain the original HTML and the new instruction
 	expectedPromptPart := "John 3:16: <h1>John 3:16</h1><p>For God so loved the world...</p>"
@@ -74,37 +99,42 @@ func TestChatService_Process_Success(t *testing.T) {
 	assert.NotNil(t, resp)
 	assert.Equal(t, "It means God loves everyone.", resp["explanation"])
 
-	mockBgClient.AssertExpectations(t)
+	mockRegistry.AssertExpectations(t)
+	mockProvider.AssertExpectations(t)
 	mockLLMClient.AssertExpectations(t)
 }
 
 func TestChatService_Process_VersesAndWords(t *testing.T) {
-	mockBgClient := new(MockBibleGatewayClient)
+	mockRegistry := new(MockBibleProviderRegistry)
+	mockProvider := new(MockProvider)
 	mockLLMClient := new(MockLLMClient)
 
 	mockGetLLMClient := func() (provider.LLMClient, error) {
 		return mockLLMClient, nil
 	}
 
-	chatService := NewChatService(mockBgClient, mockGetLLMClient)
+	chatService := NewChatService(mockRegistry, mockGetLLMClient)
 
 	req := Request{
 		VerseRefs: []string{"1 Corinthians 15:10", "Genesis 5:1"},
 		Words:     []string{"Grace"},
 		Version:   "ESV",
+		Provider:  "biblegateway",
 		Prompt:    "Which of these verses are relevant to these themes?",
 		Schema:    `{"type": "object", "properties": {"response": {"type": "string"}}}`,
 	}
 
+	mockRegistry.On("GetProvider", "biblegateway").Return(mockProvider, nil)
+
 	// Mock GetVerse calls
-	mockBgClient.On("GetVerse", "1 Corinthians", "15", "10", "ESV").Return("<p>But by the grace of God I am what I am...</p>", nil)
-	mockBgClient.On("GetVerse", "Genesis", "5", "1", "ESV").Return("<p>This is the book of the generations of Adam...</p>", nil)
+	mockProvider.On("GetVerse", "1 Corinthians", "15", "10", "ESV").Return("<p>But by the grace of God I am what I am...</p>", nil)
+	mockProvider.On("GetVerse", "Genesis", "5", "1", "ESV").Return("<p>This is the book of the generations of Adam...</p>", nil)
 
 	// Mock SearchWords calls
 	searchResults := []bible.SearchResult{
 		{Verse: "Ephesians 2:8", Text: "For by grace you have been saved..."},
 	}
-	mockBgClient.On("SearchWords", "Grace", "ESV").Return(searchResults, nil)
+	mockProvider.On("SearchWords", "Grace", "ESV").Return(searchResults, nil)
 
 	// Mock LLM Query
 	// The prompt should contain both verses (with HTML) and search results
@@ -125,32 +155,37 @@ func TestChatService_Process_VersesAndWords(t *testing.T) {
 	assert.NotNil(t, resp)
 	assert.Equal(t, "Both are relevant.", resp["response"])
 
-	mockBgClient.AssertExpectations(t)
+	mockRegistry.AssertExpectations(t)
+	mockProvider.AssertExpectations(t)
 	mockLLMClient.AssertExpectations(t)
 }
 
 func TestChatService_Process_WithWords(t *testing.T) {
-	mockBgClient := new(MockBibleGatewayClient)
+	mockRegistry := new(MockBibleProviderRegistry)
+	mockProvider := new(MockProvider)
 	mockLLMClient := new(MockLLMClient)
 
 	mockGetLLMClient := func() (provider.LLMClient, error) {
 		return mockLLMClient, nil
 	}
 
-	chatService := NewChatService(mockBgClient, mockGetLLMClient)
+	chatService := NewChatService(mockRegistry, mockGetLLMClient)
 
 	req := Request{
-		Words:   []string{"Grace"},
-		Version: "NIV",
-		Prompt:  "Summarize these search results.",
-		Schema:  `{"type": "object", "properties": {"summary": {"type": "string"}}}`,
+		Words:    []string{"Grace"},
+		Version:  "NIV",
+		Provider: "biblegateway",
+		Prompt:   "Summarize these search results.",
+		Schema:   `{"type": "object", "properties": {"summary": {"type": "string"}}}`,
 	}
+
+	mockRegistry.On("GetProvider", "biblegateway").Return(mockProvider, nil)
 
 	searchResults := []bible.SearchResult{
 		{Verse: "Ephesians 2:8", Text: "For it is by grace you have been saved..."},
 	}
 
-	mockBgClient.On("SearchWords", "Grace", "NIV").Return(searchResults, nil)
+	mockProvider.On("SearchWords", "Grace", "NIV").Return(searchResults, nil)
 
 	expectedPromptPart := "Summarize these search results.\n\nRelevant Search Results:\nEphesians 2:8: For it is by grace you have been saved..."
 	expectedInstruction := "Please format your response using semantic HTML."
@@ -165,29 +200,34 @@ func TestChatService_Process_WithWords(t *testing.T) {
 	assert.NotNil(t, resp)
 	assert.Equal(t, "Grace saves.", resp["summary"])
 
-	mockBgClient.AssertExpectations(t)
+	mockRegistry.AssertExpectations(t)
+	mockProvider.AssertExpectations(t)
 	mockLLMClient.AssertExpectations(t)
 }
 
 func TestChatService_Process_BookWithSpace(t *testing.T) {
-	mockBgClient := new(MockBibleGatewayClient)
+	mockRegistry := new(MockBibleProviderRegistry)
+	mockProvider := new(MockProvider)
 	mockLLMClient := new(MockLLMClient)
 
 	mockGetLLMClient := func() (provider.LLMClient, error) {
 		return mockLLMClient, nil
 	}
 
-	chatService := NewChatService(mockBgClient, mockGetLLMClient)
+	chatService := NewChatService(mockRegistry, mockGetLLMClient)
 
 	req := Request{
 		VerseRefs: []string{"1 John 3:16"},
 		Version:   "NIV",
+		Provider:  "biblegateway",
 		Prompt:    "Explain this verse.",
 		Schema:    `{"type": "object", "properties": {"explanation": {"type": "string"}}}`,
 	}
 
+	mockRegistry.On("GetProvider", "biblegateway").Return(mockProvider, nil)
+
 	verseHTML := "<h1>1 John 3:16</h1><p>This is how we know what love is...</p>"
-	mockBgClient.On("GetVerse", "1 John", "3", "16", "NIV").Return(verseHTML, nil)
+	mockProvider.On("GetVerse", "1 John", "3", "16", "NIV").Return(verseHTML, nil)
 
 	expectedPromptPart := "1 John 3:16: <h1>1 John 3:16</h1><p>This is how we know what love is...</p>"
 	expectedInstruction := "Please format your response using semantic HTML."
@@ -202,51 +242,60 @@ func TestChatService_Process_BookWithSpace(t *testing.T) {
 	assert.NotNil(t, resp)
 	assert.Equal(t, "It is about sacrificial love.", resp["explanation"])
 
-	mockBgClient.AssertExpectations(t)
+	mockRegistry.AssertExpectations(t)
+	mockProvider.AssertExpectations(t)
 	mockLLMClient.AssertExpectations(t)
 }
 
 func TestChatService_Process_BibleGatewayError(t *testing.T) {
-	mockBgClient := new(MockBibleGatewayClient)
+	mockRegistry := new(MockBibleProviderRegistry)
+	mockProvider := new(MockProvider)
 	mockGetLLMClient := func() (provider.LLMClient, error) {
 		return nil, nil
 	}
 
-	chatService := NewChatService(mockBgClient, mockGetLLMClient)
+	chatService := NewChatService(mockRegistry, mockGetLLMClient)
 
 	req := Request{
 		VerseRefs: []string{"Invalid 1:1"},
 		Version:   "NIV",
+		Provider:  "biblegateway",
 		Prompt:    "Explain this verse.",
 	}
 
-	mockBgClient.On("GetVerse", "Invalid", "1", "1", "NIV").Return("", errors.New("verse not found"))
+	mockRegistry.On("GetProvider", "biblegateway").Return(mockProvider, nil)
+
+	mockProvider.On("GetVerse", "Invalid", "1", "1", "NIV").Return("", errors.New("verse not found"))
 
 	_, err := chatService.Process(context.Background(), req)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "verse not found")
 
-	mockBgClient.AssertExpectations(t)
+	mockRegistry.AssertExpectations(t)
+	mockProvider.AssertExpectations(t)
 }
 
 func TestChatService_Process_LLMError(t *testing.T) {
-	mockBgClient := new(MockBibleGatewayClient)
+	mockRegistry := new(MockBibleProviderRegistry)
+	mockProvider := new(MockProvider)
 	mockLLMClient := new(MockLLMClient)
 	mockGetLLMClient := func() (provider.LLMClient, error) {
 		return mockLLMClient, nil
 	}
 
-	chatService := NewChatService(mockBgClient, mockGetLLMClient)
+	chatService := NewChatService(mockRegistry, mockGetLLMClient)
 
 	req := Request{
 		VerseRefs: []string{"John 3:16"},
 		Version:   "NIV",
+		Provider:  "biblegateway",
 		Prompt:    "Explain this verse.",
 		Schema:    `{"type": "object", "properties": {"explanation": {"type": "string"}}}`,
 	}
 
-	mockBgClient.On("GetVerse", "John", "3", "16", "NIV").Return("<p>For God so loved the world...</p>", nil)
+	mockRegistry.On("GetProvider", "biblegateway").Return(mockProvider, nil)
+	mockProvider.On("GetVerse", "John", "3", "16", "NIV").Return("<p>For God so loved the world...</p>", nil)
 	mockLLMClient.On("Query", mock.Anything, mock.Anything, mock.Anything).Return("", errors.New("LLM failed"))
 
 	_, err := chatService.Process(context.Background(), req)
@@ -254,6 +303,7 @@ func TestChatService_Process_LLMError(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "LLM failed")
 
-	mockBgClient.AssertExpectations(t)
+	mockRegistry.AssertExpectations(t)
+	mockProvider.AssertExpectations(t)
 	mockLLMClient.AssertExpectations(t)
 }

@@ -11,10 +11,9 @@ import (
 	"bible-api-service/internal/util"
 )
 
-// BibleGatewayClient defines the interface for the Bible Gateway client.
-type BibleGatewayClient interface {
-	GetVerse(book, chapter, verse, version string) (string, error)
-	SearchWords(query, version string) ([]bible.SearchResult, error)
+// BibleProviderRegistry defines the interface for retrieving Bible providers.
+type BibleProviderRegistry interface {
+	GetProvider(name string) (bible.Provider, error)
 }
 
 // GetLLMClient defines the function signature for getting an LLM client.
@@ -22,15 +21,15 @@ type GetLLMClient func() (provider.LLMClient, error)
 
 // ChatService orchestrates fetching Bible verses, processing them, and interacting with an LLM.
 type ChatService struct {
-	BibleGatewayClient BibleGatewayClient
-	GetLLMClient       GetLLMClient
+	BibleProviderRegistry BibleProviderRegistry
+	GetLLMClient          GetLLMClient
 }
 
 // NewChatService creates a new ChatService.
-func NewChatService(bgClient BibleGatewayClient, getLLMClient GetLLMClient) *ChatService {
+func NewChatService(registry BibleProviderRegistry, getLLMClient GetLLMClient) *ChatService {
 	return &ChatService{
-		BibleGatewayClient: bgClient,
-		GetLLMClient:       getLLMClient,
+		BibleProviderRegistry: registry,
+		GetLLMClient:          getLLMClient,
 	}
 }
 
@@ -39,6 +38,7 @@ type Request struct {
 	VerseRefs []string `json:"verse_refs"`
 	Words     []string `json:"words"`
 	Version   string   `json:"version"`
+	Provider  string   `json:"provider"`
 	Prompt    string   `json:"prompt"`
 	Schema    string   `json:"schema"`
 }
@@ -48,7 +48,13 @@ type Response map[string]interface{}
 
 // Process handles the chat request.
 func (s *ChatService) Process(ctx context.Context, req Request) (Response, error) {
-	// 1. Retrieve verses from biblegateway
+	// Get the provider
+	bibleProvider, err := s.BibleProviderRegistry.GetProvider(req.Provider)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get provider '%s': %w", req.Provider, err)
+	}
+
+	// 1. Retrieve verses
 	var verseTexts []string
 	for _, verseRef := range req.VerseRefs {
 		book, chapter, verseNum, err := util.ParseVerseReference(verseRef)
@@ -56,7 +62,7 @@ func (s *ChatService) Process(ctx context.Context, req Request) (Response, error
 			return nil, fmt.Errorf("invalid verse reference format (%s): %w", verseRef, err)
 		}
 
-		verseHTML, err := s.BibleGatewayClient.GetVerse(book, chapter, verseNum, req.Version)
+		verseHTML, err := bibleProvider.GetVerse(book, chapter, verseNum, req.Version)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get verse %s: %w", verseRef, err)
 		}
@@ -68,7 +74,7 @@ func (s *ChatService) Process(ctx context.Context, req Request) (Response, error
 	// 3. Search for words and add to context
 	var searchResults []string
 	for _, word := range req.Words {
-		results, err := s.BibleGatewayClient.SearchWords(word, req.Version)
+		results, err := bibleProvider.SearchWords(word, req.Version)
 		if err != nil {
 			return nil, fmt.Errorf("failed to search word %s: %w", word, err)
 		}
