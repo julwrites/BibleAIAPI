@@ -5,18 +5,13 @@ import (
 	"net/http"
 	"strings"
 
+	"bible-api-service/internal/bible"
+
 	"github.com/PuerkitoBio/goquery"
 )
 
-// Version represents a Bible version.
-type Version struct {
-	Name     string `json:"name" yaml:"name"`
-	Value    string `json:"value" yaml:"value"`
-	Language string `json:"language" yaml:"language"`
-}
-
 // GetVersions scrapes the available Bible versions from Bible Gateway.
-func (s *Scraper) GetVersions() ([]Version, error) {
+func (s *Scraper) GetVersions() ([]bible.ProviderVersion, error) {
 	url := s.baseURL + "/versions/"
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -38,7 +33,7 @@ func (s *Scraper) GetVersions() ([]Version, error) {
 		return nil, err
 	}
 
-	var versions []Version
+	var versions []bible.ProviderVersion
 	// Find the select element with class "search-dropdown" and name "version"
 	sel := doc.Find("select.search-dropdown[name='version']")
 
@@ -61,9 +56,10 @@ func (s *Scraper) GetVersions() ([]Version, error) {
 			return
 		}
 
-		versions = append(versions, Version{
+		versions = append(versions, bible.ProviderVersion{
 			Name:     text,
 			Value:    val,
+			Code:     val, // BibleGateway uses codes as values
 			Language: currentLanguage,
 		})
 	})
