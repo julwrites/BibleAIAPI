@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -45,7 +46,12 @@ func TestAPI_WordSearch_CleanOutput(t *testing.T) {
 	scraper := biblegateway.NewScraper()
 	scraper.SetBaseURL(server.URL)
 
-	handler := handlers.NewQueryHandler(&secrets.EnvClient{})
+	tmp := t.TempDir()
+	path := filepath.Join(tmp, "versions.yaml")
+	os.WriteFile(path, []byte("[]"), 0644)
+	vm, _ := bible.NewVersionManager(path)
+
+	handler := handlers.NewQueryHandler(&secrets.EnvClient{}, vm)
 	handler.BibleGatewayClient = scraper
 
 	// 3. Test Word Search

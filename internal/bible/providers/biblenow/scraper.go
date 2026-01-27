@@ -30,7 +30,7 @@ func (s *Scraper) GetVerse(book, chapter, verse, version string) (string, error)
 	if version == "" {
 		version = "KJV"
 	}
-	versionSlug := getVersionSlug(version)
+	versionSlug := GetVersionSlug(version)
 
 	bookSlug, testament, err := getBookSlugAndTestament(book)
 	if err != nil {
@@ -137,7 +137,8 @@ func parseVerseRange(verse string) (int, int, error) {
 	return start, end, nil
 }
 
-func getVersionSlug(version string) string {
+// GetVersionSlug returns the slug for a given version code.
+func GetVersionSlug(version string) string {
 	v := strings.ToUpper(version)
 	switch v {
 	case "KJV":

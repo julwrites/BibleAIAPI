@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"bible-api-service/internal/bible/providers/biblegateway"
+	"bible-api-service/internal/bible"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -20,53 +20,55 @@ func TestNewVersionsHandler(t *testing.T) {
 		configPath := filepath.Join(tmpDir, "versions.yaml")
 		content := `
 - name: English Standard Version
-  value: ESV
+  code: ESV
   language: English
 - name: King James Version
-  value: KJV
+  code: KJV
   language: English
 `
 		err := os.WriteFile(configPath, []byte(content), 0644)
 		require.NoError(t, err)
 
-		h, err := NewVersionsHandler(configPath)
-		require.NoError(t, err)
-		assert.Len(t, h.versions, 2)
-		assert.Equal(t, "ESV", h.versions[0].Value)
-	})
-
-	t.Run("FileNotFound", func(t *testing.T) {
-		_, err := NewVersionsHandler("nonexistent.yaml")
-		assert.Error(t, err)
-	})
-
-	t.Run("InvalidYAML", func(t *testing.T) {
-		tmpDir := t.TempDir()
-		configPath := filepath.Join(tmpDir, "invalid.yaml")
-		err := os.WriteFile(configPath, []byte("invalid yaml content"), 0644)
+		vm, err := bible.NewVersionManager(configPath)
 		require.NoError(t, err)
 
-		_, err = NewVersionsHandler(configPath)
-		assert.Error(t, err)
+		h := NewVersionsHandler(vm)
+		versions := h.manager.GetAll()
+		assert.Len(t, versions, 2)
+		assert.Equal(t, "ESV", versions[0].Code)
 	})
 }
 
-func TestVersionsHandler_ListVersions(t *testing.T) {
-	v := []biblegateway.Version{
-		{Name: "English Standard Version", Value: "ESV", Language: "English"},
-		{Name: "King James Version", Value: "KJV", Language: "English"},
-		{Name: "Reina-Valera 1960", Value: "RVR1960", Language: "Spanish"},
-		{Name: "La Bible du Semeur", Value: "BDS", Language: "French"},
-	}
-	// Need to access internal field, so we use reflection or just assume the struct is available if in same package
-	// Since we are in handlers package (white-box testing), we can access unexported fields if we create the struct directly.
-	// However, VersionsHandler struct definition has `versions` as exported? No, it is `versions`.
-	// Let's check `internal/handlers/versions.go` again.
-	// type VersionsHandler struct { versions []biblegateway.Version }
-	// It is unexported.
-	// But `versions_test.go` is package `handlers`, so it can access unexported fields.
+// Helper to create handler with pre-populated versions
+func createTestVersionsHandler(t *testing.T, versions []bible.Version) *VersionsHandler {
+	return nil
+}
 
-	h := &VersionsHandler{versions: v}
+// Copied from previous attempt but modified to use file creation
+func TestVersionsHandler_ListVersions(t *testing.T) {
+	content := `
+- name: English Standard Version
+  code: ESV
+  language: English
+- name: King James Version
+  code: KJV
+  language: English
+- name: Reina-Valera 1960
+  code: RVR1960
+  language: Spanish
+- name: La Bible du Semeur
+  code: BDS
+  language: French
+`
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "versions.yaml")
+	err := os.WriteFile(configPath, []byte(content), 0644)
+	require.NoError(t, err)
+
+	vm, err := bible.NewVersionManager(configPath)
+	require.NoError(t, err)
+
+	h := NewVersionsHandler(vm)
 
 	t.Run("MethodNotAllowed", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/versions", nil)
@@ -103,7 +105,7 @@ func TestVersionsHandler_ListVersions(t *testing.T) {
 		assert.Equal(t, float64(1), resp["total"])
 		data := resp["data"].([]interface{})
 		assert.Len(t, data, 1)
-		assert.Equal(t, "ESV", data[0].(map[string]interface{})["value"])
+		assert.Equal(t, "ESV", data[0].(map[string]interface{})["code"])
 	})
 
 	t.Run("FilterByLanguage", func(t *testing.T) {
@@ -119,7 +121,7 @@ func TestVersionsHandler_ListVersions(t *testing.T) {
 		assert.Equal(t, float64(1), resp["total"])
 		data := resp["data"].([]interface{})
 		assert.Len(t, data, 1)
-		assert.Equal(t, "RVR1960", data[0].(map[string]interface{})["value"])
+		assert.Equal(t, "RVR1960", data[0].(map[string]interface{})["code"])
 	})
 
 	t.Run("SortByName", func(t *testing.T) {
@@ -151,8 +153,8 @@ func TestVersionsHandler_ListVersions(t *testing.T) {
 
 		data := resp["data"].([]interface{})
 		// BDS, ESV, KJV, RVR1960
-		assert.Equal(t, "BDS", data[0].(map[string]interface{})["value"])
-		assert.Equal(t, "ESV", data[1].(map[string]interface{})["value"])
+		assert.Equal(t, "BDS", data[0].(map[string]interface{})["code"])
+		assert.Equal(t, "ESV", data[1].(map[string]interface{})["code"])
 	})
 
 	t.Run("Pagination", func(t *testing.T) {

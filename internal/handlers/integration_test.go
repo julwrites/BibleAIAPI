@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"bible-api-service/internal/bible"
 	"bible-api-service/internal/middleware"
 	"bible-api-service/internal/secrets"
 	"bytes"
@@ -42,6 +43,13 @@ func TestQueryEndpointIntegration(t *testing.T) {
 
 	authMiddleware := middleware.NewAuthMiddleware(secretsClient)
 
+	// Load versions
+	versionsPath := "../../configs/versions.yaml"
+	versionManager, err := bible.NewVersionManager(versionsPath)
+	if err != nil {
+		t.Fatalf("failed to create version manager: %v", err)
+	}
+
 	providers := []string{"biblegateway", "biblehub"}
 
 	for _, provider := range providers {
@@ -49,7 +57,7 @@ func TestQueryEndpointIntegration(t *testing.T) {
 			os.Setenv("BIBLE_PROVIDER", provider)
 			defer os.Unsetenv("BIBLE_PROVIDER")
 
-			handler := NewQueryHandler(secretsClient)
+			handler := NewQueryHandler(secretsClient, versionManager)
 			server := httptest.NewServer(middleware.Logging(authMiddleware.APIKeyAuth(handler)))
 			defer server.Close()
 

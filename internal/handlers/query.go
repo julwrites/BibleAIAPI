@@ -24,13 +24,20 @@ type QueryHandler struct {
 	GetLLMClient       GetLLMClient
 	FFClient           FFClient
 	ChatService        ChatService
+	VersionManager     *bible.VersionManager
+	ProviderName       string
 }
 
 // NewQueryHandler creates a new QueryHandler with default clients.
-func NewQueryHandler(secretsClient secrets.Client) *QueryHandler {
+func NewQueryHandler(secretsClient secrets.Client, versionManager *bible.VersionManager) *QueryHandler {
 	// Initialize the Bible provider manager based on environment variable
+	providerName := os.Getenv("BIBLE_PROVIDER")
+	if providerName == "" {
+		providerName = "biblegateway"
+	}
+
 	var bibleProvider bible.Provider
-	switch os.Getenv("BIBLE_PROVIDER") {
+	switch providerName {
 	case "biblehub":
 		bibleProvider = biblehub.NewScraper()
 	case "biblenow":
@@ -48,6 +55,8 @@ func NewQueryHandler(secretsClient secrets.Client) *QueryHandler {
 		GetLLMClient:       getLLMClient,
 		FFClient:           &GoFeatureFlagClient{},
 		ChatService:        chat.NewChatService(bibleManager, getLLMClient),
+		VersionManager:     versionManager,
+		ProviderName:       providerName,
 	}
 }
 
@@ -81,21 +90,6 @@ func (h *QueryHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate context is only present if prompt is present
-	// We check if Context fields are populated.
-	// Note: We can't easily check "if struct is empty" without checking fields, or checking if the pointer is nil if it was a pointer (it's not).
-	// However, we can check if specific fields are set that shouldn't be for non-prompt queries.
-	// The user said: "context object is only valid when we receive a prompt".
-	// If hasPrompt is false, we should check if any Context fields are set.
-	// Context fields: History, Schema, Verses, Words, User.
-	// Exception: User.Version might be desired for all queries, but the instruction was strict.
-	// "context object is only valid when we receive a 'prompt' in the 'query' object"
-	// I will enforce this strictly. If Verses/Words query has ANY context, it's an error.
-	// But wait, how do we specify version for Verses/Words query if Context is banned?
-	// If the user intends to remove Context for Verses/Words, then Verses/Words queries will always use default version.
-	// Or maybe they assume User object is outside Context? No, it's inside.
-	// I will assume strict compliance.
-
 	if !hasPrompt {
 		// Check if Context (excluding User) is non-empty
 		hasContext := len(request.Context.History) > 0 ||
@@ -109,14 +103,21 @@ func (h *QueryHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Set default version if needed (only relevant if Context is valid/allowed, effectively only for Prompt queries now, unless we default it for others too internally)
-	// For non-prompt queries, version will be empty, which defaults to ESV in the scraper usually or we should set it here.
-	// If Context is not allowed for Verses/Words, we can't get version from request.Context.User.Version.
-	// So we'll just pass empty string, and let the scraper handle default (ESV).
-
 	if request.Context.User.Version == "" {
 		request.Context.User.Version = "ESV"
 	}
+
+	// Resolve provider-specific version
+	providerVersion, err := h.VersionManager.GetProviderCode(request.Context.User.Version, h.ProviderName)
+	if err != nil {
+		log.Printf("Version lookup failed for %s: %v", request.Context.User.Version, err)
+		// Fallback to unified version if lookup fails
+		providerVersion = request.Context.User.Version
+	}
+	// Temporarily override the version in request context so handlers use the provider code
+	// Note: Use a separate variable or modify request object if safe.
+	// We'll pass providerVersion explicitly where needed or modify the request struct locally.
+	request.Context.User.Version = providerVersion
 
 	if hasPrompt {
 		h.handlePromptQuery(w, r, request)
@@ -163,21 +164,12 @@ func (h *QueryHandler) handlePromptQuery(w http.ResponseWriter, r *http.Request,
 	}
 
 	chatReq := chat.Request{
-		VerseRefs: request.Context.Verses, // Verses for context come from Context.Verses
-		Words:     request.Context.Words,  // Words for context come from Context.Words
-		Version:   request.Context.User.Version,
+		VerseRefs: request.Context.Verses,
+		Words:     request.Context.Words,
+		Version:   request.Context.User.Version, // This is now providerVersion
 		Prompt:    request.Query.Prompt,
 		Schema:    schema,
 	}
-
-	// Note: We are ignoring Context.History and Context.Words for now as chat.Request doesn't seem to use them yet,
-	// or the chat service needs updating to handle history/words.
-	// The user only mentioned renaming pquery to history, but didn't explicitly say to use it yet,
-	// but presumably it's for future use or the ChatService should use it.
-	// For now, I will proceed with what ChatService supports. `chat.Request` has `VerseRefs`.
-	// If `Context.History` is needed, `chat.Request` needs update.
-	// Given I am not asked to update ChatService logic deeply, I'll stick to what's available.
-	// But wait, if `Context.Verses` is used for context, that's good.
 
 	result, err := h.ChatService.Process(r.Context(), chatReq)
 	if err != nil {
@@ -199,8 +191,6 @@ func (h *QueryHandler) handleVerseQuery(w http.ResponseWriter, r *http.Request, 
 			return
 		}
 
-		// Version is effectively empty string here due to validation logic, unless we want to support it via some other way.
-		// Scraper handles empty version as default.
 		verse, err := h.BibleGatewayClient.GetVerse(book, chapter, verseNum, request.Context.User.Version)
 		if err != nil {
 			log.Printf("BibleGatewayClient.GetVerse failed for %s %s:%s: %v", book, chapter, verseNum, err)
@@ -216,7 +206,6 @@ func (h *QueryHandler) handleWordSearchQuery(w http.ResponseWriter, r *http.Requ
 	log.Printf("Handling word search query for words: %v", request.Query.Words)
 	allResults := make([]bible.SearchResult, 0)
 	for _, word := range request.Query.Words {
-		// Version is effectively empty string here.
 		results, err := h.BibleGatewayClient.SearchWords(word, request.Context.User.Version)
 		if err != nil {
 			log.Printf("Error searching words '%s': %v", word, err)
