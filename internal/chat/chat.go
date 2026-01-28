@@ -35,19 +35,29 @@ func NewChatService(registry BibleProviderRegistry, getLLMClient GetLLMClient) *
 
 // Request represents the input for the chat service.
 type Request struct {
-	VerseRefs []string `json:"verse_refs"`
-	Words     []string `json:"words"`
-	Version   string   `json:"version"`
-	Provider  string   `json:"provider"`
-	Prompt    string   `json:"prompt"`
-	Schema    string   `json:"schema"`
+	VerseRefs  []string `json:"verse_refs"`
+	Words      []string `json:"words"`
+	Version    string   `json:"version"`
+	Provider   string   `json:"provider"`
+	Prompt     string   `json:"prompt"`
+	Schema     string   `json:"schema"`
+	AIProvider string   `json:"ai_provider"`
+	Stream     bool     `json:"stream"`
 }
 
 // Response represents the structured output from the LLM.
 type Response map[string]interface{}
 
+// Result represents the outcome of a chat process, supporting both blocking and streaming.
+type Result struct {
+	Data     Response               // For blocking response
+	Stream   <-chan string          // For streaming response
+	Meta     map[string]interface{} // Metadata (e.g. provider name)
+	IsStream bool                   // Flag to indicate if it's a stream
+}
+
 // Process handles the chat request.
-func (s *ChatService) Process(ctx context.Context, req Request) (Response, error) {
+func (s *ChatService) Process(ctx context.Context, req Request) (*Result, error) {
 	// Get the provider
 	bibleProvider, err := s.BibleProviderRegistry.GetProvider(req.Provider)
 	if err != nil {
@@ -108,17 +118,38 @@ func (s *ChatService) Process(ctx context.Context, req Request) (Response, error
 		return nil, fmt.Errorf("failed to get llm client: %w", err)
 	}
 
-	// 6. Require the llm response to be structured output
-	llmResponse, _, err := llmClient.Query(ctx, llmPrompt, req.Schema)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query llm: %w", err)
+	// Inject preferred provider if specified
+	if req.AIProvider != "" {
+		ctx = context.WithValue(ctx, provider.PreferredProviderKey, req.AIProvider)
 	}
 
-	// 7. Return the structured output.
-	var result Response
-	if err := json.Unmarshal([]byte(llmResponse), &result); err != nil {
-		return nil, fmt.Errorf("failed to parse llm response: %w", err)
-	}
+	if req.Stream {
+		ch, providerName, err := llmClient.Stream(ctx, llmPrompt)
+		if err != nil {
+			return nil, fmt.Errorf("failed to stream llm: %w", err)
+		}
+		return &Result{
+			Stream:   ch,
+			IsStream: true,
+			Meta:     map[string]interface{}{"ai_provider": providerName},
+		}, nil
+	} else {
+		// 6. Require the llm response to be structured output
+		llmResponse, providerName, err := llmClient.Query(ctx, llmPrompt, req.Schema)
+		if err != nil {
+			return nil, fmt.Errorf("failed to query llm: %w", err)
+		}
 
-	return result, nil
+		// 7. Return the structured output.
+		var result Response
+		if err := json.Unmarshal([]byte(llmResponse), &result); err != nil {
+			return nil, fmt.Errorf("failed to parse llm response: %w", err)
+		}
+
+		return &Result{
+			Data:     result,
+			IsStream: false,
+			Meta:     map[string]interface{}{"ai_provider": providerName},
+		}, nil
+	}
 }

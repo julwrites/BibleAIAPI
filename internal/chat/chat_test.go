@@ -106,11 +106,13 @@ func TestChatService_Process_Success(t *testing.T) {
 		return strings.Contains(prompt, expectedPromptPart) && strings.Contains(prompt, expectedInstruction)
 	}), req.Schema).Return(`{"explanation": "It means God loves everyone."}`, "mock-provider", nil)
 
-	resp, err := chatService.Process(context.Background(), req)
+	result, err := chatService.Process(context.Background(), req)
 
 	assert.NoError(t, err)
-	assert.NotNil(t, resp)
-	assert.Equal(t, "It means God loves everyone.", resp["explanation"])
+	assert.NotNil(t, result)
+	assert.False(t, result.IsStream)
+	assert.Equal(t, "It means God loves everyone.", result.Data["explanation"])
+	assert.Equal(t, "mock-provider", result.Meta["ai_provider"])
 
 	mockRegistry.AssertExpectations(t)
 	mockProvider.AssertExpectations(t)
@@ -162,11 +164,12 @@ func TestChatService_Process_VersesAndWords(t *testing.T) {
 			strings.Contains(prompt, expectedInstruction)
 	}), req.Schema).Return(`{"response": "Both are relevant."}`, "mock-provider", nil)
 
-	resp, err := chatService.Process(context.Background(), req)
+	result, err := chatService.Process(context.Background(), req)
 
 	assert.NoError(t, err)
-	assert.NotNil(t, resp)
-	assert.Equal(t, "Both are relevant.", resp["response"])
+	assert.NotNil(t, result)
+	assert.False(t, result.IsStream)
+	assert.Equal(t, "Both are relevant.", result.Data["response"])
 
 	mockRegistry.AssertExpectations(t)
 	mockProvider.AssertExpectations(t)
@@ -207,11 +210,12 @@ func TestChatService_Process_WithWords(t *testing.T) {
 		return strings.Contains(prompt, expectedPromptPart) && strings.Contains(prompt, expectedInstruction)
 	}), req.Schema).Return(`{"summary": "Grace saves."}`, "mock-provider", nil)
 
-	resp, err := chatService.Process(context.Background(), req)
+	result, err := chatService.Process(context.Background(), req)
 
 	assert.NoError(t, err)
-	assert.NotNil(t, resp)
-	assert.Equal(t, "Grace saves.", resp["summary"])
+	assert.NotNil(t, result)
+	assert.False(t, result.IsStream)
+	assert.Equal(t, "Grace saves.", result.Data["summary"])
 
 	mockRegistry.AssertExpectations(t)
 	mockProvider.AssertExpectations(t)
@@ -249,11 +253,12 @@ func TestChatService_Process_BookWithSpace(t *testing.T) {
 		return strings.Contains(prompt, expectedPromptPart) && strings.Contains(prompt, expectedInstruction)
 	}), req.Schema).Return(`{"explanation": "It is about sacrificial love."}`, "mock-provider", nil)
 
-	resp, err := chatService.Process(context.Background(), req)
+	result, err := chatService.Process(context.Background(), req)
 
 	assert.NoError(t, err)
-	assert.NotNil(t, resp)
-	assert.Equal(t, "It is about sacrificial love.", resp["explanation"])
+	assert.NotNil(t, result)
+	assert.False(t, result.IsStream)
+	assert.Equal(t, "It is about sacrificial love.", result.Data["explanation"])
 
 	mockRegistry.AssertExpectations(t)
 	mockProvider.AssertExpectations(t)
@@ -315,6 +320,59 @@ func TestChatService_Process_LLMError(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "LLM failed")
+
+	mockRegistry.AssertExpectations(t)
+	mockProvider.AssertExpectations(t)
+	mockLLMClient.AssertExpectations(t)
+}
+
+func TestChatService_Process_Streaming(t *testing.T) {
+	mockRegistry := new(MockBibleProviderRegistry)
+	mockProvider := new(MockProvider)
+	mockLLMClient := new(MockLLMClient)
+
+	mockGetLLMClient := func() (provider.LLMClient, error) {
+		return mockLLMClient, nil
+	}
+
+	chatService := NewChatService(mockRegistry, mockGetLLMClient)
+
+	req := Request{
+		VerseRefs:  []string{"John 3:16"},
+		Version:    "NIV",
+		Provider:   "biblegateway",
+		Prompt:     "Explain this verse.",
+		Stream:     true,
+		AIProvider: "openai",
+	}
+
+	mockRegistry.On("GetProvider", "biblegateway").Return(mockProvider, nil)
+
+	verseHTML := "<h1>John 3:16</h1><p>For God so loved the world...</p>"
+	mockProvider.On("GetVerse", "John", "3", "16", "NIV").Return(verseHTML, nil)
+
+	streamChan := make(chan string, 2)
+	streamChan <- "God loves "
+	streamChan <- "everyone."
+	close(streamChan)
+
+	mockLLMClient.On("Stream", mock.MatchedBy(func(ctx context.Context) bool {
+		val, ok := ctx.Value(provider.PreferredProviderKey).(string)
+		return ok && val == "openai"
+	}), mock.Anything).Return((<-chan string)(streamChan), "openai", nil)
+
+	result, err := chatService.Process(context.Background(), req)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.True(t, result.IsStream)
+	assert.Equal(t, "openai", result.Meta["ai_provider"])
+
+	var content string
+	for chunk := range result.Stream {
+		content += chunk
+	}
+	assert.Equal(t, "God loves everyone.", content)
 
 	mockRegistry.AssertExpectations(t)
 	mockProvider.AssertExpectations(t)
