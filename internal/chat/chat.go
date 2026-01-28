@@ -45,6 +45,7 @@ type Request struct {
 	Schema     string   `json:"schema"`
 	AIProvider string   `json:"ai_provider"`
 	Stream     bool     `json:"stream"`
+	History    []string `json:"history"`
 }
 
 // Response represents the structured output from the LLM.
@@ -97,6 +98,12 @@ func (s *ChatService) Process(ctx context.Context, req Request) (*Result, error)
 
 	// 4. Add the text content to the chat context for llm
 	var promptBuilder strings.Builder
+
+	if historyStr := formatHistory(req.History); historyStr != "" {
+		promptBuilder.WriteString(historyStr)
+		promptBuilder.WriteString("\n\n")
+	}
+
 	promptBuilder.WriteString(req.Prompt)
 
 	if len(verseTexts) > 0 {
@@ -173,4 +180,25 @@ func (s *ChatService) Process(ctx context.Context, req Request) (*Result, error)
 			Meta:     map[string]interface{}{"ai_provider": providerName},
 		}, nil
 	}
+}
+
+// formatHistory formats the history list into a string, limiting to the last N entries.
+func formatHistory(history []string) string {
+	const maxHistory = 6
+	if len(history) == 0 {
+		return ""
+	}
+
+	start := 0
+	if len(history) > maxHistory {
+		start = len(history) - maxHistory
+	}
+
+	recentHistory := history[start:]
+	var sb strings.Builder
+	sb.WriteString("Previous Conversation Context:\n")
+	for _, msg := range recentHistory {
+		sb.WriteString(fmt.Sprintf("- %s\n", msg))
+	}
+	return sb.String()
 }

@@ -417,3 +417,55 @@ func TestChatService_Process_SchemaValidationFailure(t *testing.T) {
 	mockProvider.AssertExpectations(t)
 	mockLLMClient.AssertExpectations(t)
 }
+
+func TestChatService_Process_WithHistory(t *testing.T) {
+	mockRegistry := new(MockBibleProviderRegistry)
+	mockProvider := new(MockProvider)
+	mockLLMClient := new(MockLLMClient)
+
+	mockGetLLMClient := func() (provider.LLMClient, error) {
+		return mockLLMClient, nil
+	}
+
+	chatService := NewChatService(mockRegistry, mockGetLLMClient)
+
+	history := []string{
+		"User: Hello",
+		"AI: Hi there!",
+		"User: Who is John?",
+		"AI: John is an apostle.",
+		"User: Tell me more.",
+		"AI: He wrote a gospel.",
+		"User: Which one?",
+	}
+
+	req := Request{
+		History:  history,
+		Prompt:   "Did he write anything else?",
+		Version:  "NIV",
+		Provider: "biblegateway",
+		Schema:   `{"type": "object", "properties": {"response": {"type": "string"}}}`,
+	}
+
+	mockRegistry.On("GetProvider", "biblegateway").Return(mockProvider, nil)
+
+	// History should be limited to last 6 entries
+	expectedHistoryPart := "Previous Conversation Context:\n- AI: Hi there!\n- User: Who is John?\n- AI: John is an apostle.\n- User: Tell me more.\n- AI: He wrote a gospel.\n- User: Which one?\n"
+	unexpectedHistoryPart := "- User: Hello\n"
+
+	mockLLMClient.On("Query", mock.Anything, mock.MatchedBy(func(prompt string) bool {
+		return strings.Contains(prompt, expectedHistoryPart) &&
+			!strings.Contains(prompt, unexpectedHistoryPart) &&
+			strings.Contains(prompt, req.Prompt)
+	}), req.Schema).Return(`{"response": "Yes, epistles."}`, "mock-provider", nil)
+
+	result, err := chatService.Process(context.Background(), req)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, "Yes, epistles.", result.Data["response"])
+
+	mockRegistry.AssertExpectations(t)
+	mockProvider.AssertExpectations(t)
+	mockLLMClient.AssertExpectations(t)
+}
