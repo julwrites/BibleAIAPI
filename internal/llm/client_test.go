@@ -294,3 +294,83 @@ func TestFallbackClient_Query(t *testing.T) {
 		})
 	}
 }
+
+func TestFallbackClient_Stream_Preference(t *testing.T) {
+	client1 := &mockLLMClient{
+		nameFunc: func() string { return "client1" },
+		streamFunc: func(ctx context.Context, prompt string) (<-chan string, string, error) {
+			ch := make(chan string, 1)
+			ch <- "response1"
+			close(ch)
+			return ch, "client1", nil
+		},
+	}
+	client2 := &mockLLMClient{
+		nameFunc: func() string { return "client2" },
+		streamFunc: func(ctx context.Context, prompt string) (<-chan string, string, error) {
+			ch := make(chan string, 1)
+			ch <- "response2"
+			close(ch)
+			return ch, "client2", nil
+		},
+	}
+
+	clients := []provider.LLMClient{client1, client2}
+	clientsMap := map[string]provider.LLMClient{
+		"client1": client1,
+		"client2": client2,
+	}
+
+	fc := &FallbackClient{clients: clients, clientsMap: clientsMap}
+
+	// Case 1: Prefer client2
+	ctx := context.WithValue(context.Background(), provider.PreferredProviderKey, "client2")
+	_, name, err := fc.Stream(ctx, "prompt")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if name != "client2" {
+		t.Errorf("expected client2, got %s", name)
+	}
+
+	// Case 2: Prefer client1
+	ctx = context.WithValue(context.Background(), provider.PreferredProviderKey, "client1")
+	_, name, err = fc.Stream(ctx, "prompt")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if name != "client1" {
+		t.Errorf("expected client1, got %s", name)
+	}
+
+	// Case 3: Prefer non-existent client (fallback to order)
+	ctx = context.WithValue(context.Background(), provider.PreferredProviderKey, "client3")
+	_, name, err = fc.Stream(ctx, "prompt")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if name != "client1" { // Default order starts with client1
+		t.Errorf("expected client1, got %s", name)
+	}
+
+	// Case 4: Prefer client2, but client2 fails (fallback to others)
+	client2Fail := &mockLLMClient{
+		nameFunc: func() string { return "client2" },
+		streamFunc: func(ctx context.Context, prompt string) (<-chan string, string, error) {
+			return nil, "", errors.New("fail")
+		},
+	}
+
+	clientsFail := []provider.LLMClient{client1, client2Fail}
+	clientsMapFail := map[string]provider.LLMClient{"client1": client1, "client2": client2Fail}
+	fcFail := &FallbackClient{clients: clientsFail, clientsMap: clientsMapFail}
+
+	ctx = context.WithValue(context.Background(), provider.PreferredProviderKey, "client2")
+	_, name, err = fcFail.Stream(ctx, "prompt")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if name != "client1" {
+		t.Errorf("expected fallback to client1, got %s", name)
+	}
+}

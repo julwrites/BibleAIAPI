@@ -1,6 +1,6 @@
 ---
 id: INFRASTRUCTURE-20260127-081821-QIH
-status: review_requested
+status: completed
 title: Refactor LLM Interfaces for V2
 priority: medium
 created: 2026-01-27 08:18:21

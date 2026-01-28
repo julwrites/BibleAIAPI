@@ -1,6 +1,6 @@
 ---
 id: INFRASTRUCTURE-20260127-081821-PSR
-status: review_requested
+status: completed
 title: Update LLM Providers for V2 Interfaces
 priority: medium
 created: 2026-01-27 08:18:21
