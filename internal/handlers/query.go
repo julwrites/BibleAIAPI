@@ -13,6 +13,7 @@ import (
 	"bible-api-service/internal/util"
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -125,9 +126,16 @@ func (h *QueryHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *QueryHandler) handlePromptQuery(w http.ResponseWriter, r *http.Request, request QueryRequest, providerName string) {
+	// Validation: Stream and Schema are mutually exclusive
+	if request.Options.Stream && request.Context.Schema != "" {
+		util.JSONError(w, http.StatusBadRequest, "Stream and Schema are mutually exclusive")
+		return
+	}
+
 	// Determine schema. If not provided in Context, use default "Open Query" schema.
+	// Default schema is ONLY injected if NOT streaming.
 	schema := request.Context.Schema
-	if schema == "" {
+	if !request.Options.Stream && schema == "" {
 		schema = `{
 			"name": "oquery_response",
 			"description": "A response to an open-ended query.",
@@ -160,12 +168,14 @@ func (h *QueryHandler) handlePromptQuery(w http.ResponseWriter, r *http.Request,
 	}
 
 	chatReq := chat.Request{
-		VerseRefs: request.Context.Verses,
-		Words:     request.Context.Words,
-		Version:   request.Context.User.Version, // This is now providerVersion
-		Provider:  providerName,
-		Prompt:    request.Query.Prompt,
-		Schema:    schema,
+		VerseRefs:  request.Context.Verses,
+		Words:      request.Context.Words,
+		Version:    request.Context.User.Version, // This is now providerVersion
+		Provider:   providerName,
+		Prompt:     request.Query.Prompt,
+		Schema:     schema,
+		AIProvider: request.Context.User.AIProvider,
+		Stream:     request.Options.Stream,
 	}
 
 	result, err := h.ChatService.Process(r.Context(), chatReq)
@@ -175,8 +185,43 @@ func (h *QueryHandler) handlePromptQuery(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
+	if result.IsStream {
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Connection", "keep-alive")
+		w.Header().Set("Transfer-Encoding", "chunked")
+
+		flusher, ok := w.(http.Flusher)
+		if !ok {
+			http.Error(w, "Streaming not supported", http.StatusInternalServerError)
+			return
+		}
+
+		// Send Meta event
+		metaBytes, _ := json.Marshal(result.Meta)
+		fmt.Fprintf(w, "event: meta\ndata: %s\n\n", metaBytes)
+		flusher.Flush()
+
+		// Stream chunks
+		for chunk := range result.Stream {
+			data := map[string]string{"delta": chunk}
+			dataBytes, _ := json.Marshal(data)
+			fmt.Fprintf(w, "event: chunk\ndata: %s\n\n", dataBytes)
+			flusher.Flush()
+		}
+
+		// Send Done event
+		fmt.Fprintf(w, "event: done\ndata: [DONE]\n\n")
+		flusher.Flush()
+
+	} else {
+		w.Header().Set("Content-Type", "application/json")
+		response := map[string]interface{}{
+			"data": result.Data,
+			"meta": result.Meta,
+		}
+		json.NewEncoder(w).Encode(response)
+	}
 }
 
 func (h *QueryHandler) handleVerseQuery(w http.ResponseWriter, r *http.Request, request QueryRequest, providerName string) {

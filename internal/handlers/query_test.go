@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -158,10 +159,10 @@ func TestHandleWordSearchQuery(t *testing.T) {
 }
 
 type mockChatService struct {
-	processFunc func(ctx context.Context, req chat.Request) (chat.Response, error)
+	processFunc func(ctx context.Context, req chat.Request) (*chat.Result, error)
 }
 
-func (m *mockChatService) Process(ctx context.Context, req chat.Request) (chat.Response, error) {
+func (m *mockChatService) Process(ctx context.Context, req chat.Request) (*chat.Result, error) {
 	return m.processFunc(ctx, req)
 }
 
@@ -173,11 +174,15 @@ func TestHandlePromptQuery(t *testing.T) {
 
 	handler := &QueryHandler{
 		ChatService: &mockChatService{
-			processFunc: func(ctx context.Context, req chat.Request) (chat.Response, error) {
+			processFunc: func(ctx context.Context, req chat.Request) (*chat.Result, error) {
 				if req.Provider != bible.DefaultProviderName {
 					return nil, &http.MaxBytesError{} // Indicate failure
 				}
-				return chat.Response{"text": "Jesus fed 5,000 men."}, nil
+				return &chat.Result{
+					Data:     chat.Response{"text": "Jesus fed 5,000 men."},
+					IsStream: false,
+					Meta:     map[string]interface{}{"ai_provider": "openai"},
+				}, nil
 			},
 		},
 		VersionManager:  vm,
@@ -209,10 +214,72 @@ func TestHandlePromptQuery(t *testing.T) {
 		t.Fatalf("failed to decode response: %v", err)
 	}
 
+	data, ok := response["data"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected data field in response")
+	}
+
 	expected := "Jesus fed 5,000 men."
-	if response["text"] != expected {
+	if data["text"] != expected {
 		t.Errorf("handler returned unexpected body: got %v want %v",
-			response["text"], expected)
+			data["text"], expected)
+	}
+}
+
+func TestHandlePromptQuery_Stream(t *testing.T) {
+	vm := createTestVersionManager(t)
+	pm := bible.NewProviderManager(nil)
+
+	handler := &QueryHandler{
+		ChatService: &mockChatService{
+			processFunc: func(ctx context.Context, req chat.Request) (*chat.Result, error) {
+				ch := make(chan string, 2)
+				ch <- "Jesus "
+				ch <- "wept."
+				close(ch)
+				return &chat.Result{
+					Stream:   ch,
+					IsStream: true,
+					Meta:     map[string]interface{}{"ai_provider": "openai"},
+				}, nil
+			},
+		},
+		VersionManager:  vm,
+		ProviderManager: pm,
+	}
+
+	reqBody := `{
+		"query": {
+			"prompt": "Shortest verse?"
+		},
+		"options": {
+			"stream": true
+		}
+	}`
+	req := httptest.NewRequest("POST", "/query", bytes.NewBufferString(reqBody))
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got %v want %v",
+			status, http.StatusOK)
+	}
+
+	if contentType := rr.Header().Get("Content-Type"); contentType != "text/event-stream" {
+		t.Errorf("handler returned wrong content type: got %v want %v",
+			contentType, "text/event-stream")
+	}
+
+	body := rr.Body.String()
+	if !strings.Contains(body, `event: meta`) {
+		t.Error("body does not contain meta event")
+	}
+	if !strings.Contains(body, `event: chunk`) {
+		t.Error("body does not contain chunk event")
+	}
+	if !strings.Contains(body, `event: done`) {
+		t.Error("body does not contain done event")
 	}
 }
 
@@ -222,11 +289,13 @@ func TestHandlePromptQuery_WithContext(t *testing.T) {
 
 	handler := &QueryHandler{
 		ChatService: &mockChatService{
-			processFunc: func(ctx context.Context, req chat.Request) (chat.Response, error) {
+			processFunc: func(ctx context.Context, req chat.Request) (*chat.Result, error) {
 				if len(req.VerseRefs) != 1 || req.VerseRefs[0] != "John 3:16" {
 					return nil, &http.MaxBytesError{} // Use an error to signal mismatch
 				}
-				return chat.Response{"response": "ok"}, nil
+				return &chat.Result{
+					Data: chat.Response{"response": "ok"},
+				}, nil
 			},
 		},
 		VersionManager:  vm,
@@ -442,7 +511,7 @@ func TestHandlePromptQuery_Error(t *testing.T) {
 
 	handler := &QueryHandler{
 		ChatService: &mockChatService{
-			processFunc: func(ctx context.Context, req chat.Request) (chat.Response, error) {
+			processFunc: func(ctx context.Context, req chat.Request) (*chat.Result, error) {
 				return nil, &http.MaxBytesError{}
 			},
 		},

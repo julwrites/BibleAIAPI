@@ -21,5 +21,5 @@ type GetLLMClient func() (provider.LLMClient, error)
 
 // ChatService defines the interface for the chat service.
 type ChatService interface {
-	Process(ctx context.Context, req chat.Request) (chat.Response, error)
+	Process(ctx context.Context, req chat.Request) (*chat.Result, error)
 }
