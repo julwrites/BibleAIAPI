@@ -1,6 +1,6 @@
 ---
 id: INFRASTRUCTURE-20260127-140656-CUH
-status: in_progress
+status: completed
 title: Fix BibleNow Scraper Version Fetching
 priority: medium
 created: 2026-01-27 14:06:56
@@ -17,11 +17,11 @@ The current BibleNow scraper only fetches versions from the English page. Howeve
 This task involves refactoring the scraper to support multi-language version fetching and updating `GetVerse` to handle localized URLs dynamically.
 
 ### Requirements
-- [ ] Update `GetVersions` to iterate over all available languages on BibleNow.
-- [ ] Parse versions from each language page and store the full relative path (e.g., `es/biblia/reina-valera-1909`) as the `Value`.
-- [ ] Update `GetVerse` to use the stored `Value` path to locate the version.
-- [ ] Implement logic in `GetVerse` to find the correct book link by index (since book names are localized) rather than constructing the URL string manually.
-- [ ] Ensure unit tests cover the new multi-language fetching and dynamic verse URL construction.
+- [x] Update `GetVersions` to iterate over all available languages on BibleNow.
+- [x] Parse versions from each language page and store the full relative path (e.g., `es/biblia/reina-valera-1909`) as the `Value`.
+- [x] Update `GetVerse` to use the stored `Value` path to locate the version.
+- [x] Implement logic in `GetVerse` to find the correct book link by index (since book names are localized) rather than constructing the URL string manually.
+- [x] Ensure unit tests cover the new multi-language fetching and dynamic verse URL construction.
 
 ## Implementation Plan
 1.  **GetVersions**:
