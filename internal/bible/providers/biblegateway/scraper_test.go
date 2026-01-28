@@ -7,6 +7,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"bible-api-service/internal/bible"
 )
 
 func normalizeSpace(s string) string {
@@ -128,7 +130,7 @@ func TestSearchWords(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	expected := []SearchResult{
+	expected := []bible.SearchResult{
 		{
 			Verse: "John 3:16",
 			Text:  "For God so loved the world, that he gave his only Son, that whoever believes in him should not perish but have eternal life.",

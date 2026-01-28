@@ -1,7 +1,8 @@
 package tests
 
 import (
-	"bible-api-service/internal/biblegateway"
+	"bible-api-service/internal/bible"
+	"bible-api-service/internal/bible/providers/biblegateway"
 	"bible-api-service/internal/handlers"
 	"bible-api-service/internal/secrets"
 	"bytes"
@@ -9,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -44,8 +46,14 @@ func TestAPI_WordSearch_CleanOutput(t *testing.T) {
 	scraper := biblegateway.NewScraper()
 	scraper.SetBaseURL(server.URL)
 
-	handler := handlers.NewQueryHandler(&secrets.EnvClient{})
-	handler.BibleGatewayClient = scraper
+	tmp := t.TempDir()
+	path := filepath.Join(tmp, "versions.yaml")
+	os.WriteFile(path, []byte("[]"), 0644)
+	vm, _ := bible.NewVersionManager(path)
+
+	handler := handlers.NewQueryHandler(&secrets.EnvClient{}, vm)
+	// handler.BibleGatewayClient = scraper // OLD
+	handler.ProviderManager.RegisterProvider("biblegateway", scraper)
 
 	// 3. Test Word Search
 	t.Run("Word Search - Love", func(t *testing.T) {
@@ -59,7 +67,7 @@ func TestAPI_WordSearch_CleanOutput(t *testing.T) {
 			t.Fatalf("expected status 200, got %d", w.Code)
 		}
 
-		var results []biblegateway.SearchResult
+		var results []bible.SearchResult
 		if err := json.NewDecoder(w.Body).Decode(&results); err != nil {
 			t.Fatalf("failed to decode response: %v", err)
 		}

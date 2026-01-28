@@ -97,6 +97,7 @@ For high-volume services or strict DDOS mitigation, consider **Google Cloud Armo
 | `OPENAI_API_KEY` | API Key for OpenAI. | Optional (if using OpenAI) |
 | `GEMINI_API_KEY` | API Key for Gemini. | Optional (if using Gemini) |
 | `DEEPSEEK_API_KEY` | API Key for DeepSeek. | Optional (if using DeepSeek) |
+| `BIBLE_PROVIDER` | Bible data source (`biblegateway`, `biblehub`, `biblenow`). Default: `biblegateway` | Optional |
 | `OPENROUTER_API_KEY` | API Key for OpenRouter. | Optional (if using OpenRouter) |
 | `OPENAI_CUSTOM_API_KEY` | API Key for custom OpenAI-compatible endpoint. | Optional (if using custom OpenAI-compatible endpoint) |
 | `OPENAI_CUSTOM_BASE_URL` | Base URL for custom OpenAI-compatible endpoint. | Optional (if using custom OpenAI-compatible endpoint) |

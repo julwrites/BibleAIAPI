@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log"
 
 	"bible-api-service/internal/llm/provider"
 	"bible-api-service/internal/secrets"
@@ -44,10 +45,10 @@ func NewClient(ctx context.Context, secretsClient secrets.Client, model string) 
 	return NewOpenAICustom(llm), nil
 }
 
-func (c *OpenAICustomClient) Query(ctx context.Context, prompt string, schemaJSON string) (string, error) {
+func (c *OpenAICustomClient) Query(ctx context.Context, prompt string, schemaJSON string) (string, string, error) {
 	var toolSchema llms.FunctionDefinition
 	if err := json.Unmarshal([]byte(schemaJSON), &toolSchema); err != nil {
-		return "", err
+		return "", "openai-custom", err
 	}
 
 	messages := []llms.MessageContent{
@@ -70,12 +71,45 @@ func (c *OpenAICustomClient) Query(ctx context.Context, prompt string, schemaJSO
 		llms.WithToolChoice("required"),
 	)
 	if err != nil {
-		return "", err
+		return "", "openai-custom", err
 	}
 
 	if len(completion.Choices) == 0 || len(completion.Choices[0].ToolCalls) == 0 {
-		return "", errors.New("no tool call found in LLM response")
+		return "", "openai-custom", errors.New("no tool call found in LLM response")
 	}
 
-	return completion.Choices[0].ToolCalls[0].FunctionCall.Arguments, nil
+	return completion.Choices[0].ToolCalls[0].FunctionCall.Arguments, "openai-custom", nil
+}
+
+func (c *OpenAICustomClient) Stream(ctx context.Context, prompt string) (<-chan string, string, error) {
+	ch := make(chan string)
+
+	go func() {
+		defer close(ch)
+
+		messages := []llms.MessageContent{
+			{
+				Role: llms.ChatMessageTypeHuman,
+				Parts: []llms.ContentPart{
+					llms.TextPart(prompt),
+				},
+			},
+		}
+
+		if _, err := c.llm.GenerateContent(ctx,
+			messages,
+			llms.WithStreamingFunc(func(ctx context.Context, chunk []byte) error {
+				ch <- string(chunk)
+				return nil
+			}),
+		); err != nil {
+			log.Printf("openai-custom: stream generation failed: %v", err)
+		}
+	}()
+
+	return ch, "openai-custom", nil
+}
+
+func (c *OpenAICustomClient) Name() string {
+	return "openai-custom"
 }

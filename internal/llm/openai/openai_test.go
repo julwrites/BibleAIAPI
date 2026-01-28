@@ -101,10 +101,13 @@ func TestOpenAIClient_Query(t *testing.T) {
 			}
 			client := NewOpenAI(mock)
 
-			value, err := client.Query(context.Background(), tt.prompt, tt.schema)
+			value, providerName, err := client.Query(context.Background(), tt.prompt, tt.schema)
 
 			if value != tt.expectedValue {
 				t.Errorf("unexpected value: got %q, want %q", value, tt.expectedValue)
+			}
+			if err == nil && providerName != "openai" {
+				t.Errorf("unexpected provider name: got %q, want %q", providerName, "openai")
 			}
 
 			if !cmp.Equal(err, tt.expectedError, cmp.Comparer(func(x, y error) bool {
@@ -116,5 +119,47 @@ func TestOpenAIClient_Query(t *testing.T) {
 				t.Errorf("unexpected error: got %v, want %v", err, tt.expectedError)
 			}
 		})
+	}
+}
+
+func TestOpenAIClient_Stream(t *testing.T) {
+	mockChunks := []string{"chunk1", "chunk2"}
+
+	mock := &mockLLM{
+		generateContentFunc: func(ctx context.Context, messages []llms.MessageContent, options ...llms.CallOption) (*llms.ContentResponse, error) {
+			opts := llms.CallOptions{}
+			for _, opt := range options {
+				opt(&opts)
+			}
+
+			if opts.StreamingFunc != nil {
+				for _, chunk := range mockChunks {
+					if err := opts.StreamingFunc(ctx, []byte(chunk)); err != nil {
+						return nil, err
+					}
+				}
+			}
+
+			return &llms.ContentResponse{}, nil
+		},
+	}
+
+	client := NewOpenAI(mock)
+	ch, providerName, err := client.Stream(context.Background(), "test prompt")
+
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if providerName != "openai" {
+		t.Errorf("unexpected provider name: got %q, want %q", providerName, "openai")
+	}
+
+	var received []string
+	for chunk := range ch {
+		received = append(received, chunk)
+	}
+
+	if !cmp.Equal(received, mockChunks) {
+		t.Errorf("unexpected chunks: got %v, want %v", received, mockChunks)
 	}
 }

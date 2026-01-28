@@ -13,7 +13,11 @@ type QueryRequest struct {
 		Verses  []string `json:"verses,omitempty"`
 		Words   []string `json:"words,omitempty"`
 		User    struct {
-			Version string `json:"version"`
+			Version    string `json:"version"`
+			AIProvider string `json:"ai_provider,omitempty"`
 		} `json:"user"`
 	} `json:"context,omitempty"`
+	Options struct {
+		Stream bool `json:"stream,omitempty"`
+	} `json:"options,omitempty"`
 }

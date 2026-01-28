@@ -1,7 +1,11 @@
 package handlers
 
 import (
-	"bible-api-service/internal/biblegateway"
+	"bible-api-service/internal/bible"
+	"bible-api-service/internal/bible/providers/biblecom"
+	"bible-api-service/internal/bible/providers/biblegateway"
+	"bible-api-service/internal/bible/providers/biblehub"
+	"bible-api-service/internal/bible/providers/biblenow"
 	"bible-api-service/internal/chat"
 	"bible-api-service/internal/llm"
 	"bible-api-service/internal/llm/provider"
@@ -9,6 +13,7 @@ import (
 	"bible-api-service/internal/util"
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -16,23 +21,39 @@ import (
 
 // QueryHandler is the main handler for the /query endpoint.
 type QueryHandler struct {
-	BibleGatewayClient BibleGatewayClient
-	GetLLMClient       GetLLMClient
-	FFClient           FFClient
-	ChatService        ChatService
+	ProviderManager *bible.ProviderManager
+	GetLLMClient    GetLLMClient
+	FFClient        FFClient
+	ChatService     ChatService
+	VersionManager  *bible.VersionManager
 }
 
 // NewQueryHandler creates a new QueryHandler with default clients.
-func NewQueryHandler(secretsClient secrets.Client) *QueryHandler {
-	bibleGatewayClient := biblegateway.NewScraper()
+func NewQueryHandler(secretsClient secrets.Client, versionManager *bible.VersionManager) *QueryHandler {
+	// Initialize providers
+	gatewayProvider := biblegateway.NewScraper()
+	hubProvider := biblehub.NewScraper()
+	nowProvider := biblenow.NewScraper()
+	comProvider := biblecom.NewScraper()
+
+	// Initialize ProviderManager with default/primary (gateway)
+	bibleManager := bible.NewProviderManager(gatewayProvider)
+
+	// Register all providers
+	bibleManager.RegisterProvider(bible.DefaultProviderName, gatewayProvider)
+	bibleManager.RegisterProvider("biblehub", hubProvider)
+	bibleManager.RegisterProvider("biblenow", nowProvider)
+	bibleManager.RegisterProvider("biblecom", comProvider)
+
 	getLLMClient := func() (provider.LLMClient, error) {
 		return llm.NewFallbackClient(context.Background(), secretsClient)
 	}
 	return &QueryHandler{
-		BibleGatewayClient: bibleGatewayClient,
-		GetLLMClient:       getLLMClient,
-		FFClient:           &GoFeatureFlagClient{},
-		ChatService:        chat.NewChatService(bibleGatewayClient, getLLMClient),
+		ProviderManager: bibleManager,
+		GetLLMClient:    getLLMClient,
+		FFClient:        &GoFeatureFlagClient{},
+		ChatService:     chat.NewChatService(bibleManager, getLLMClient),
+		VersionManager:  versionManager,
 	}
 }
 
@@ -66,21 +87,6 @@ func (h *QueryHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate context is only present if prompt is present
-	// We check if Context fields are populated.
-	// Note: We can't easily check "if struct is empty" without checking fields, or checking if the pointer is nil if it was a pointer (it's not).
-	// However, we can check if specific fields are set that shouldn't be for non-prompt queries.
-	// The user said: "context object is only valid when we receive a prompt".
-	// If hasPrompt is false, we should check if any Context fields are set.
-	// Context fields: History, Schema, Verses, Words, User.
-	// Exception: User.Version might be desired for all queries, but the instruction was strict.
-	// "context object is only valid when we receive a 'prompt' in the 'query' object"
-	// I will enforce this strictly. If Verses/Words query has ANY context, it's an error.
-	// But wait, how do we specify version for Verses/Words query if Context is banned?
-	// If the user intends to remove Context for Verses/Words, then Verses/Words queries will always use default version.
-	// Or maybe they assume User object is outside Context? No, it's inside.
-	// I will assume strict compliance.
-
 	if !hasPrompt {
 		// Check if Context (excluding User) is non-empty
 		hasContext := len(request.Context.History) > 0 ||
@@ -94,28 +100,42 @@ func (h *QueryHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Set default version if needed (only relevant if Context is valid/allowed, effectively only for Prompt queries now, unless we default it for others too internally)
-	// For non-prompt queries, version will be empty, which defaults to ESV in the scraper usually or we should set it here.
-	// If Context is not allowed for Verses/Words, we can't get version from request.Context.User.Version.
-	// So we'll just pass empty string, and let the scraper handle default (ESV).
-
 	if request.Context.User.Version == "" {
 		request.Context.User.Version = "ESV"
 	}
 
+	// Dynamic Provider Selection
+	providerName, providerVersion, err := h.VersionManager.SelectProvider(request.Context.User.Version, nil)
+	if err != nil {
+		log.Printf("Provider selection failed for %s: %v. Falling back to %s.", request.Context.User.Version, err, bible.DefaultProviderName)
+		// Fallback
+		providerName = bible.DefaultProviderName
+		providerVersion = request.Context.User.Version
+	}
+
+	// Update the version in request context to the provider-specific code
+	request.Context.User.Version = providerVersion
+
 	if hasPrompt {
-		h.handlePromptQuery(w, r, request)
+		h.handlePromptQuery(w, r, request, providerName)
 	} else if hasVerses {
-		h.handleVerseQuery(w, r, request)
+		h.handleVerseQuery(w, r, request, providerName)
 	} else if hasWords {
-		h.handleWordSearchQuery(w, r, request)
+		h.handleWordSearchQuery(w, r, request, providerName)
 	}
 }
 
-func (h *QueryHandler) handlePromptQuery(w http.ResponseWriter, r *http.Request, request QueryRequest) {
+func (h *QueryHandler) handlePromptQuery(w http.ResponseWriter, r *http.Request, request QueryRequest, providerName string) {
+	// Validation: Stream and Schema are mutually exclusive
+	if request.Options.Stream && request.Context.Schema != "" {
+		util.JSONError(w, http.StatusBadRequest, "Stream and Schema are mutually exclusive")
+		return
+	}
+
 	// Determine schema. If not provided in Context, use default "Open Query" schema.
+	// Default schema is ONLY injected if NOT streaming.
 	schema := request.Context.Schema
-	if schema == "" {
+	if !request.Options.Stream && schema == "" {
 		schema = `{
 			"name": "oquery_response",
 			"description": "A response to an open-ended query.",
@@ -148,21 +168,16 @@ func (h *QueryHandler) handlePromptQuery(w http.ResponseWriter, r *http.Request,
 	}
 
 	chatReq := chat.Request{
-		VerseRefs: request.Context.Verses, // Verses for context come from Context.Verses
-		Words:     request.Context.Words,  // Words for context come from Context.Words
-		Version:   request.Context.User.Version,
-		Prompt:    request.Query.Prompt,
-		Schema:    schema,
+		VerseRefs:  request.Context.Verses,
+		Words:      request.Context.Words,
+		Version:    request.Context.User.Version, // This is now providerVersion
+		Provider:   providerName,
+		Prompt:     request.Query.Prompt,
+		Schema:     schema,
+		AIProvider: request.Context.User.AIProvider,
+		Stream:     request.Options.Stream,
+		History:    request.Context.History,
 	}
-
-	// Note: We are ignoring Context.History and Context.Words for now as chat.Request doesn't seem to use them yet,
-	// or the chat service needs updating to handle history/words.
-	// The user only mentioned renaming pquery to history, but didn't explicitly say to use it yet,
-	// but presumably it's for future use or the ChatService should use it.
-	// For now, I will proceed with what ChatService supports. `chat.Request` has `VerseRefs`.
-	// If `Context.History` is needed, `chat.Request` needs update.
-	// Given I am not asked to update ChatService logic deeply, I'll stick to what's available.
-	// But wait, if `Context.Verses` is used for context, that's good.
 
 	result, err := h.ChatService.Process(r.Context(), chatReq)
 	if err != nil {
@@ -171,11 +186,53 @@ func (h *QueryHandler) handlePromptQuery(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
+	if result.IsStream {
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Connection", "keep-alive")
+		w.Header().Set("Transfer-Encoding", "chunked")
+
+		flusher, ok := w.(http.Flusher)
+		if !ok {
+			http.Error(w, "Streaming not supported", http.StatusInternalServerError)
+			return
+		}
+
+		// Send Meta event
+		metaBytes, _ := json.Marshal(result.Meta)
+		fmt.Fprintf(w, "event: meta\ndata: %s\n\n", metaBytes)
+		flusher.Flush()
+
+		// Stream chunks
+		for chunk := range result.Stream {
+			data := map[string]string{"delta": chunk}
+			dataBytes, _ := json.Marshal(data)
+			fmt.Fprintf(w, "event: chunk\ndata: %s\n\n", dataBytes)
+			flusher.Flush()
+		}
+
+		// Send Done event
+		fmt.Fprintf(w, "event: done\ndata: [DONE]\n\n")
+		flusher.Flush()
+
+	} else {
+		w.Header().Set("Content-Type", "application/json")
+		response := map[string]interface{}{
+			"data": result.Data,
+			"meta": result.Meta,
+		}
+		json.NewEncoder(w).Encode(response)
+	}
 }
 
-func (h *QueryHandler) handleVerseQuery(w http.ResponseWriter, r *http.Request, request QueryRequest) {
+func (h *QueryHandler) handleVerseQuery(w http.ResponseWriter, r *http.Request, request QueryRequest, providerName string) {
+	p, err := h.ProviderManager.GetProvider(providerName)
+	if err != nil {
+		log.Printf("Failed to get provider %s: %v", providerName, err)
+		util.JSONError(w, http.StatusInternalServerError, "Provider configuration error")
+		return
+	}
+
 	var verseText []string
 	for _, verseRef := range request.Query.Verses {
 		book, chapter, verseNum, err := util.ParseVerseReference(verseRef)
@@ -184,11 +241,9 @@ func (h *QueryHandler) handleVerseQuery(w http.ResponseWriter, r *http.Request, 
 			return
 		}
 
-		// Version is effectively empty string here due to validation logic, unless we want to support it via some other way.
-		// Scraper handles empty version as default.
-		verse, err := h.BibleGatewayClient.GetVerse(book, chapter, verseNum, request.Context.User.Version)
+		verse, err := p.GetVerse(book, chapter, verseNum, request.Context.User.Version)
 		if err != nil {
-			log.Printf("BibleGatewayClient.GetVerse failed for %s %s:%s: %v", book, chapter, verseNum, err)
+			log.Printf("Provider %s GetVerse failed for %s %s:%s: %v", providerName, book, chapter, verseNum, err)
 			util.JSONError(w, http.StatusInternalServerError, "Failed to get verse")
 			return
 		}
@@ -197,14 +252,21 @@ func (h *QueryHandler) handleVerseQuery(w http.ResponseWriter, r *http.Request, 
 	json.NewEncoder(w).Encode(map[string]string{"verse": strings.Join(verseText, "\n")})
 }
 
-func (h *QueryHandler) handleWordSearchQuery(w http.ResponseWriter, r *http.Request, request QueryRequest) {
-	log.Printf("Handling word search query for words: %v", request.Query.Words)
-	allResults := make([]biblegateway.SearchResult, 0)
+func (h *QueryHandler) handleWordSearchQuery(w http.ResponseWriter, r *http.Request, request QueryRequest, providerName string) {
+	log.Printf("Handling word search query for words: %v using provider: %s", request.Query.Words, providerName)
+
+	p, err := h.ProviderManager.GetProvider(providerName)
+	if err != nil {
+		log.Printf("Failed to get provider %s: %v", providerName, err)
+		util.JSONError(w, http.StatusInternalServerError, "Provider configuration error")
+		return
+	}
+
+	allResults := make([]bible.SearchResult, 0)
 	for _, word := range request.Query.Words {
-		// Version is effectively empty string here.
-		results, err := h.BibleGatewayClient.SearchWords(word, request.Context.User.Version)
+		results, err := p.SearchWords(word, request.Context.User.Version)
 		if err != nil {
-			log.Printf("Error searching words '%s': %v", word, err)
+			log.Printf("Error searching words '%s' with provider %s: %v", word, providerName, err)
 			util.JSONError(w, http.StatusInternalServerError, "Failed to search words")
 			return
 		}

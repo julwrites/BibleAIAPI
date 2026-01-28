@@ -20,7 +20,8 @@ import (
 
 // FallbackClient is a client that tries a list of providers in order until one succeeds.
 type FallbackClient struct {
-	clients []provider.LLMClient
+	clients    []provider.LLMClient
+	clientsMap map[string]provider.LLMClient
 }
 
 // parseLLMConfig parses the LLM configuration from environment variable or secret.
@@ -104,6 +105,7 @@ func NewFallbackClient(ctx context.Context, secretsClient secrets.Client) (*Fall
 		return nil, err
 	}
 
+	clientsMap := make(map[string]provider.LLMClient)
 	log.Printf("LLM provider order: %v", providerOrder)
 
 	clients := make([]provider.LLMClient, 0, len(providerConfig))
@@ -137,6 +139,7 @@ func NewFallbackClient(ctx context.Context, secretsClient secrets.Client) (*Fall
 				log.Printf("Successfully initialized provider '%s' with default model", providerName)
 			}
 			clients = append(clients, client)
+			clientsMap[client.Name()] = client
 		} else if err != nil {
 			log.Printf("Failed to initialize provider '%s': %v", providerName, err)
 			configErrors = append(configErrors, fmt.Sprintf("%s: %v", providerName, err))
@@ -150,28 +153,86 @@ func NewFallbackClient(ctx context.Context, secretsClient secrets.Client) (*Fall
 		return nil, fmt.Errorf("no valid LLM clients could be created. Errors: %s", strings.Join(configErrors, "; "))
 	}
 
-	return &FallbackClient{clients: clients}, nil
+	return &FallbackClient{clients: clients, clientsMap: clientsMap}, nil
 }
 
 // Query tries each client in order until one succeeds.
-func (c *FallbackClient) Query(ctx context.Context, prompt string, schema string) (string, error) {
+func (c *FallbackClient) Query(ctx context.Context, prompt string, schema string) (string, string, error) {
 	var lastErr error
 
+	preferredName, _ := ctx.Value(provider.PreferredProviderKey).(string)
+	triedPreferred := false
+
+	if preferredName != "" {
+		if client, ok := c.clientsMap[preferredName]; ok {
+			ctxWithTimeout, cancel := context.WithTimeout(ctx, 1*time.Minute)
+			result, providerName, err := client.Query(ctxWithTimeout, prompt, schema)
+			cancel()
+			if err == nil {
+				return result, providerName, nil
+			}
+			log.Printf("Preferred provider %s failed: %v", client.Name(), err)
+			lastErr = err
+			triedPreferred = true
+		}
+	}
+
 	for _, client := range c.clients {
+		if triedPreferred && client.Name() == preferredName {
+			continue
+		}
 		providerType := reflect.TypeOf(client).String()
 		log.Printf("Attempting LLM provider: %s", providerType)
 
 		ctxWithTimeout, cancel := context.WithTimeout(ctx, 1*time.Minute)
 
-		result, err := client.Query(ctxWithTimeout, prompt, schema)
+		result, providerName, err := client.Query(ctxWithTimeout, prompt, schema)
 		cancel()
 		if err == nil {
-			log.Printf("Provider %s succeeded", providerType)
-			return result, nil
+			return result, providerName, nil
 		}
-		log.Printf("Provider %s failed: %v", providerType, err)
+		log.Printf("Provider %s failed: %v", client.Name(), err)
 		lastErr = err
 	}
 
-	return "", fmt.Errorf("all LLM providers failed: %w", lastErr)
+	return "", "", fmt.Errorf("all LLM providers failed: %w", lastErr)
+}
+
+// Stream tries each client in order until one succeeds.
+func (c *FallbackClient) Stream(ctx context.Context, prompt string) (<-chan string, string, error) {
+	var lastErr error
+
+	preferredName, _ := ctx.Value(provider.PreferredProviderKey).(string)
+	triedPreferred := false
+
+	if preferredName != "" {
+		if client, ok := c.clientsMap[preferredName]; ok {
+			ch, providerName, err := client.Stream(ctx, prompt)
+			if err == nil {
+				return ch, providerName, nil
+			}
+			log.Printf("Preferred provider %s stream failed: %v", client.Name(), err)
+			lastErr = err
+			triedPreferred = true
+		}
+	}
+
+	for _, client := range c.clients {
+		if triedPreferred && client.Name() == preferredName {
+			continue
+		}
+		ch, providerName, err := client.Stream(ctx, prompt)
+		if err == nil {
+			return ch, providerName, nil
+		}
+		log.Printf("Provider %s stream failed: %v", client.Name(), err)
+		lastErr = err
+	}
+
+	return nil, "", fmt.Errorf("all LLM providers failed to stream: %w", lastErr)
+}
+
+// Name returns the name of the client.
+func (c *FallbackClient) Name() string {
+	return "fallback"
 }
