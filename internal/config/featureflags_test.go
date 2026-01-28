@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -52,11 +53,17 @@ func TestGetPollingInterval(t *testing.T) {
 }
 
 func TestInitFeatureFlags(t *testing.T) {
+	// Create a temporary flags.yaml file
+	dir := t.TempDir()
+	flagsFile := filepath.Join(dir, "flags.yaml")
+	if err := os.WriteFile(flagsFile, []byte("test-flag:\n  variations:\n    true_var: true\n    false_var: false\n  defaultRule:\n    variation: true_var\n"), 0644); err != nil {
+		t.Fatalf("Failed to create temp flags file: %v", err)
+	}
+
 	t.Run("Successful initialization", func(t *testing.T) {
-		// We can't easily mock the gofeatureflag.Init function,
-		// so we'll just call it and check for panics.
-		// In a real-world scenario, you might use a more sophisticated
-		// approach, like a wrapper around the gofeatureflag package.
+		os.Setenv("FLAGS_CONFIG_PATH", flagsFile)
+		defer os.Unsetenv("FLAGS_CONFIG_PATH")
+
 		defer func() {
 			if r := recover(); r != nil {
 				t.Errorf("InitFeatureFlags panicked: %v", r)
@@ -66,6 +73,8 @@ func TestInitFeatureFlags(t *testing.T) {
 	})
 
 	t.Run("No GITHUB_TOKEN", func(t *testing.T) {
+		os.Setenv("FLAGS_CONFIG_PATH", flagsFile)
+		defer os.Unsetenv("FLAGS_CONFIG_PATH")
 		os.Unsetenv("GITHUB_TOKEN")
 		defer func() {
 			if r := recover(); r != nil {
