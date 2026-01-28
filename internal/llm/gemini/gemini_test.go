@@ -121,3 +121,45 @@ func TestGeminiClient_Query(t *testing.T) {
 		})
 	}
 }
+
+func TestGeminiClient_Stream(t *testing.T) {
+	mockChunks := []string{"chunk1", "chunk2"}
+
+	mock := &mockLLM{
+		generateContentFunc: func(ctx context.Context, messages []llms.MessageContent, options ...llms.CallOption) (*llms.ContentResponse, error) {
+			opts := llms.CallOptions{}
+			for _, opt := range options {
+				opt(&opts)
+			}
+
+			if opts.StreamingFunc != nil {
+				for _, chunk := range mockChunks {
+					if err := opts.StreamingFunc(ctx, []byte(chunk)); err != nil {
+						return nil, err
+					}
+				}
+			}
+
+			return &llms.ContentResponse{}, nil
+		},
+	}
+
+	client := NewGemini(mock)
+	ch, providerName, err := client.Stream(context.Background(), "test prompt")
+
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if providerName != "gemini" {
+		t.Errorf("unexpected provider name: got %q, want %q", providerName, "gemini")
+	}
+
+	var received []string
+	for chunk := range ch {
+		received = append(received, chunk)
+	}
+
+	if !cmp.Equal(received, mockChunks) {
+		t.Errorf("unexpected chunks: got %v, want %v", received, mockChunks)
+	}
+}

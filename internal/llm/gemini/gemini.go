@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log"
 
 	"bible-api-service/internal/llm/provider"
 	"bible-api-service/internal/secrets"
@@ -70,7 +71,32 @@ func (c *GeminiClient) Query(ctx context.Context, prompt string, schemaJSON stri
 }
 
 func (c *GeminiClient) Stream(ctx context.Context, prompt string) (<-chan string, string, error) {
-	return nil, "gemini", errors.New("not implemented")
+	ch := make(chan string)
+
+	go func() {
+		defer close(ch)
+
+		messages := []llms.MessageContent{
+			{
+				Role: llms.ChatMessageTypeHuman,
+				Parts: []llms.ContentPart{
+					llms.TextPart(prompt),
+				},
+			},
+		}
+
+		if _, err := c.llm.GenerateContent(ctx,
+			messages,
+			llms.WithStreamingFunc(func(ctx context.Context, chunk []byte) error {
+				ch <- string(chunk)
+				return nil
+			}),
+		); err != nil {
+			log.Printf("gemini: stream generation failed: %v", err)
+		}
+	}()
+
+	return ch, "gemini", nil
 }
 
 func (c *GeminiClient) Name() string {

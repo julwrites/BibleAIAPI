@@ -1,6 +1,6 @@
 ---
 id: INFRASTRUCTURE-20260127-081821-PSR
-status: pending
+status: review_requested
 title: Update LLM Providers for V2 Interfaces
 priority: medium
 created: 2026-01-27 08:18:21
@@ -15,8 +15,8 @@ type: task
 Update all LLM provider implementations to satisfy the new `LLMClient` interface.
 
 ### Requirements
-- [ ] Update `openai` provider (implement `Stream`, `Name`, update `Query`).
-- [ ] Update `deepseek` provider.
-- [ ] Update `gemini` provider.
-- [ ] Update `openapicustom` provider.
-- [ ] Verify `Stream` implementations use `langchaingo` streaming capabilities where available.
+- [x] Update `openai` provider (implement `Stream`, `Name`, update `Query`).
+- [x] Update `deepseek` provider.
+- [x] Update `gemini` provider.
+- [x] Update `openapicustom` provider.
+- [x] Verify `Stream` implementations use `langchaingo` streaming capabilities where available.
