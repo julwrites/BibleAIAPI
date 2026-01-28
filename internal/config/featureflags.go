@@ -35,6 +35,11 @@ func InitFeatureFlags() {
 	pollingInterval := getPollingInterval()
 	log.Printf("Feature Flag Polling Interval set to: %v", pollingInterval)
 
+	flagsConfigPath := os.Getenv("FLAGS_CONFIG_PATH")
+	if flagsConfigPath == "" {
+		flagsConfigPath = "configs/flags.yaml"
+	}
+
 	err := gofeatureflag.Init(gofeatureflag.Config{
 		PollingInterval: pollingInterval,
 		Retriever: NewFallbackRetriever(
@@ -45,7 +50,7 @@ func InitFeatureFlags() {
 				GithubToken:    githubToken,
 			},
 			&fileretriever.Retriever{
-				Path: "configs/flags.yaml",
+				Path: flagsConfigPath,
 			},
 		),
 	})

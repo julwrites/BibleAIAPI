@@ -19,6 +19,9 @@ func TestMain(t *testing.T) {
 	// Set VERSIONS_CONFIG_PATH to relative path for tests
 	os.Setenv("VERSIONS_CONFIG_PATH", "../../configs/versions.yaml")
 	defer os.Unsetenv("VERSIONS_CONFIG_PATH")
+	// Set FLAGS_CONFIG_PATH to relative path for tests
+	os.Setenv("FLAGS_CONFIG_PATH", "../../configs/flags.yaml")
+	defer os.Unsetenv("FLAGS_CONFIG_PATH")
 
 	go main()
 

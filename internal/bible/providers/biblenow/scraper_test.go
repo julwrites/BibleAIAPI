@@ -1,14 +1,15 @@
 package biblenow
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 )
 
 func TestScraper_GetVerse(t *testing.T) {
-	// Mock HTML response
-	mockHTML := `
+	// Mock HTML for Chapter Page
+	mockChapterHTML := `
 <!DOCTYPE html>
 <html>
 <body>
@@ -24,14 +25,34 @@ func TestScraper_GetVerse(t *testing.T) {
 </html>
 `
 
+	// Mock HTML for Version Page (listing books)
+	mockVersionHTML := `
+<!DOCTYPE html>
+<html>
+<body>
+	<a href="%s/en/bible/king-james-version/old-testament">Old Testament</a>
+	<a href="%s/en/bible/king-james-version/old-testament/genesis">Genesis</a>
+	<a href="%s/en/bible/king-james-version/old-testament/exodus">Exodus</a>
+</body>
+</html>
+`
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Verify URL format
-		// /en/bible/king-james-version/old-testament/genesis/1
-		expectedPath := "/en/bible/king-james-version/old-testament/genesis/1"
-		if r.URL.Path != expectedPath {
-			t.Errorf("expected path %s, got %s", expectedPath, r.URL.Path)
+		baseURL := "http://" + r.Host
+
+		// Normalize paths to ignore host
+		if r.URL.Path == "/en/bible/king-james-version" {
+			w.Write([]byte(fmt.Sprintf(mockVersionHTML, baseURL, baseURL, baseURL)))
+			return
 		}
-		w.Write([]byte(mockHTML))
+
+		if r.URL.Path == "/en/bible/king-james-version/old-testament/genesis/1" {
+			w.Write([]byte(mockChapterHTML))
+			return
+		}
+
+		t.Errorf("Unexpected request: %s", r.URL.Path)
+		http.NotFound(w, r)
 	}))
 	defer server.Close()
 
@@ -56,6 +77,63 @@ func TestScraper_GetVerse(t *testing.T) {
 	expectedRange := "In the beginning God created the heaven and the earth. And the earth was without form, and void; and darkness was upon the face of the deep. And the Spirit of God moved upon the face of the waters."
 	if verseRange != expectedRange {
 		t.Errorf("expected '%s', got '%s'", expectedRange, verseRange)
+	}
+}
+
+func TestScraper_GetVerse_Spanish(t *testing.T) {
+	// Mock HTML for Spanish Chapter Page
+	mockChapterHTML := `
+<!DOCTYPE html>
+<html>
+<body>
+	<div class="verse list-group chapter-content">
+		<a href="#" class="list-group-item">
+			<p class="verse"><span>1</span> En el principio creó Dios los cielos y la tierra.</p>
+		</a>
+	</div>
+</body>
+</html>
+`
+	// Mock HTML for Version Page
+	mockVersionHTML := `
+<!DOCTYPE html>
+<html>
+<body>
+	<a href="%s/es/biblia/reina-valera-1909/antiguo-testamento">Antiguo Testamento</a>
+	<a href="%s/es/biblia/reina-valera-1909/antiguo-testamento/genesis">Génesis</a>
+</body>
+</html>
+`
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		baseURL := "http://" + r.Host
+
+		if r.URL.Path == "/es/biblia/reina-valera-1909" {
+			w.Write([]byte(fmt.Sprintf(mockVersionHTML, baseURL, baseURL)))
+			return
+		}
+
+		if r.URL.Path == "/es/biblia/reina-valera-1909/antiguo-testamento/genesis/1" {
+			w.Write([]byte(mockChapterHTML))
+			return
+		}
+
+		t.Errorf("Unexpected request: %s", r.URL.Path)
+		http.NotFound(w, r)
+	}))
+	defer server.Close()
+
+	scraper := NewScraper()
+	scraper.baseURL = server.URL
+
+	// Pass full path as version
+	verse, err := scraper.GetVerse("Genesis", "1", "1", "es/biblia/reina-valera-1909")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	expectedVerse := "En el principio creó Dios los cielos y la tierra."
+	if verse != expectedVerse {
+		t.Errorf("expected '%s', got '%s'", expectedVerse, verse)
 	}
 }
 
