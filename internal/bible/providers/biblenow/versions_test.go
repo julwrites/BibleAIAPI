@@ -4,26 +4,34 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"sort"
 	"testing"
 
 	"bible-api-service/internal/bible"
 )
 
 func TestGetVersions(t *testing.T) {
-	// Mock HTML response that simulates the BibleNow versions page
-	mockHTML := `
+	// Mock English page with language links
+	mockEnglishPage := `
 <!DOCTYPE html>
 <html>
 <body>
     <div class="menu">
-        <ul>
-            <li><a href="%s/en/bible/king-james-version">King James Version (KJV)</a></li>
-            <li><a href="%s/en/bible/american-standard-version">American Standard Version (ASV)</a></li>
-            <li><a href="%s/en/bible/new-international-version">New International Version (NIV)</a></li>
-            <!-- Some other links to ignore -->
-            <li><a href="%s/en/bible/king-james-version/genesis">Genesis</a></li>
-            <li><a href="%s/en/about">About</a></li>
-        </ul>
+        <a href="%s/en/bible/king-james-version">King James Version (KJV)</a>
+        <a href="%s/es">Español (ES)</a>
+    </div>
+</body>
+</html>
+`
+	// Mock Spanish page with version links
+	mockSpanishPage := `
+<!DOCTYPE html>
+<html>
+<body>
+    <div class="menu">
+        <a href="%s/es/biblia/reina-valera-1909">Reina-Valera 1909 (RVR1909)</a>
+        <!-- Should be ignored -->
+        <a href="%s/es/biblia/reina-valera-1909/antiguo-testamento">Antiguo Testamento</a>
     </div>
 </body>
 </html>
@@ -33,7 +41,12 @@ func TestGetVersions(t *testing.T) {
 		baseURL := "http://" + r.Host
 		if r.URL.Path == "/en/bible" {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(fmt.Sprintf(mockHTML, baseURL, baseURL, baseURL, baseURL, baseURL)))
+			w.Write([]byte(fmt.Sprintf(mockEnglishPage, baseURL, baseURL)))
+			return
+		}
+		if r.URL.Path == "/es" {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(fmt.Sprintf(mockSpanishPage, baseURL, baseURL)))
 			return
 		}
 		http.NotFound(w, r)
@@ -48,14 +61,18 @@ func TestGetVersions(t *testing.T) {
 		t.Fatalf("GetVersions failed: %v", err)
 	}
 
-	if len(versions) != 3 {
-		t.Errorf("Expected 3 versions, got %d", len(versions))
+	if len(versions) != 2 {
+		t.Errorf("Expected 2 versions, got %d", len(versions))
 	}
 
+	// Sort for stability
+	sort.Slice(versions, func(i, j int) bool {
+		return versions[i].Code < versions[j].Code
+	})
+
 	expected := []bible.ProviderVersion{
-		{Name: "King James Version", Code: "KJV", Value: "king-james-version", Language: "English"},
-		{Name: "American Standard Version", Code: "ASV", Value: "american-standard-version", Language: "English"},
-		{Name: "New International Version", Code: "NIV", Value: "new-international-version", Language: "English"},
+		{Name: "King James Version", Code: "KJV", Value: "en/bible/king-james-version", Language: "English"},
+		{Name: "Reina-Valera 1909", Code: "RVR1909", Value: "es/biblia/reina-valera-1909", Language: "Español"},
 	}
 
 	for i, v := range versions {
@@ -67,6 +84,9 @@ func TestGetVersions(t *testing.T) {
 		}
 		if v.Value != expected[i].Value {
 			t.Errorf("Version %d: Expected Value %s, got %s", i, expected[i].Value, v.Value)
+		}
+		if v.Language != expected[i].Language {
+			t.Errorf("Version %d: Expected Language %s, got %s", i, expected[i].Language, v.Language)
 		}
 	}
 }
