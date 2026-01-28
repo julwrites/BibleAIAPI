@@ -378,3 +378,42 @@ func TestChatService_Process_Streaming(t *testing.T) {
 	mockProvider.AssertExpectations(t)
 	mockLLMClient.AssertExpectations(t)
 }
+
+func TestChatService_Process_SchemaValidationFailure(t *testing.T) {
+	mockRegistry := new(MockBibleProviderRegistry)
+	mockProvider := new(MockProvider)
+	mockLLMClient := new(MockLLMClient)
+
+	mockGetLLMClient := func() (provider.LLMClient, error) {
+		return mockLLMClient, nil
+	}
+
+	chatService := NewChatService(mockRegistry, mockGetLLMClient)
+
+	// Schema requires "explanation" field
+	schema := `{"type": "object", "properties": {"explanation": {"type": "string"}}, "required": ["explanation"]}`
+
+	req := Request{
+		VerseRefs: []string{"John 3:16"},
+		Version:   "NIV",
+		Provider:  "biblegateway",
+		Prompt:    "Explain this verse.",
+		Schema:    schema,
+	}
+
+	mockRegistry.On("GetProvider", "biblegateway").Return(mockProvider, nil)
+	mockProvider.On("GetVerse", "John", "3", "16", "NIV").Return("<p>For God so loved the world...</p>", nil)
+
+	// Mock LLM to return valid JSON but missing "explanation" field
+	mockLLMClient.On("Query", mock.Anything, mock.Anything, req.Schema).Return(`{"wrong_field": "some text"}`, "mock-provider", nil)
+
+	_, err := chatService.Process(context.Background(), req)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "response validation failed")
+	assert.Contains(t, err.Error(), "explanation") // Should mention the missing required field
+
+	mockRegistry.AssertExpectations(t)
+	mockProvider.AssertExpectations(t)
+	mockLLMClient.AssertExpectations(t)
+}

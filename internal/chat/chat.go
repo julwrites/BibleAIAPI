@@ -9,6 +9,8 @@ import (
 	"bible-api-service/internal/bible"
 	"bible-api-service/internal/llm/provider"
 	"bible-api-service/internal/util"
+
+	"github.com/xeipuuv/gojsonschema"
 )
 
 // BibleProviderRegistry defines the interface for retrieving Bible providers.
@@ -138,6 +140,25 @@ func (s *ChatService) Process(ctx context.Context, req Request) (*Result, error)
 		llmResponse, providerName, err := llmClient.Query(ctx, llmPrompt, req.Schema)
 		if err != nil {
 			return nil, fmt.Errorf("failed to query llm: %w", err)
+		}
+
+		// Validate the response against the schema
+		if req.Schema != "" {
+			schemaLoader := gojsonschema.NewStringLoader(req.Schema)
+			documentLoader := gojsonschema.NewStringLoader(llmResponse)
+
+			result, err := gojsonschema.Validate(schemaLoader, documentLoader)
+			if err != nil {
+				return nil, fmt.Errorf("failed to validate response against schema: %w", err)
+			}
+
+			if !result.Valid() {
+				var errs []string
+				for _, desc := range result.Errors() {
+					errs = append(errs, desc.String())
+				}
+				return nil, fmt.Errorf("response validation failed: %s", strings.Join(errs, "; "))
+			}
 		}
 
 		// 7. Return the structured output.
