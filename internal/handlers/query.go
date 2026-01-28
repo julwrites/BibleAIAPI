@@ -176,6 +176,7 @@ func (h *QueryHandler) handlePromptQuery(w http.ResponseWriter, r *http.Request,
 		Schema:     schema,
 		AIProvider: request.Context.User.AIProvider,
 		Stream:     request.Options.Stream,
+		History:    request.Context.History,
 	}
 
 	result, err := h.ChatService.Process(r.Context(), chatReq)
