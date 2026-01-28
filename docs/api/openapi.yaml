@@ -89,7 +89,7 @@ paths:
                 oneOf:
                   - $ref: '#/components/schemas/VerseResponse'
                   - $ref: '#/components/schemas/WordSearchResponse'
-                  - $ref: '#/components/schemas/OQueryResponse'
+                  - $ref: '#/components/schemas/PromptResponse'
                   - type: object
         '400':
           description: Bad Request
@@ -198,6 +198,20 @@ components:
           type: string
           example: "English (EN)"
 
+    PromptResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          description: "The structured response data (schema depends on the request schema, defaults to OQueryResponse)."
+        meta:
+          type: object
+          description: "Metadata about the response."
+          properties:
+            ai_provider:
+              type: string
+              example: "openai"
+
     VerseResponse:
       type: object
       properties:
@@ -213,6 +227,9 @@ components:
           verse:
             type: string
             example: "Romans 3:24"
+          text:
+            type: string
+            example: "For all have sinned and fall short of the glory of God"
           url:
             type: string
             example: "https://classic.biblegateway.com/passage/?search=Romans+3%3A24&version=ESV"
