@@ -127,7 +127,7 @@ func TestRun_Success(t *testing.T) {
 	assert.Equal(t, "Unknown", esv.Language)
 	assert.Equal(t, "ESV", esv.Providers["biblegateway"])
 	assert.Equal(t, "esv", esv.Providers["biblehub"])
-	assert.Equal(t, "english-standard-version", esv.Providers["biblenow"])
+	assert.Equal(t, "en/bible/english-standard-version", esv.Providers["biblenow"])
 	assert.Equal(t, "59", esv.Providers["biblecom"])
 
 	// Check for RVR1960 (only in BibleGateway)
