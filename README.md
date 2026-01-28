@@ -6,7 +6,7 @@ A stateless microservice that provides a unified API for querying Bible verses, 
 
 -   **Verse Retrieval**: Fetch verses by reference (e.g., `John 3:16`) with formatting preserved.
 -   **Word Search**: Find verses by keywords.
--   **LLM Integration**: Ask questions or provide instructions (e.g., "Summarize", "Cross-reference") using various LLM providers (OpenAI, Gemini, DeepSeek).
+-   **LLM Integration**: Ask questions or provide instructions (e.g., "Summarize", "Cross-reference") using various LLM providers (OpenAI, Gemini, DeepSeek, OpenRouter, custom OpenAI-compatible endpoints).
 -   **Smart Routing**: Routes queries based on whether they are verse lookups, word searches, or LLM prompts.
 -   **Feature Flags**: Dynamic configuration via GitHub-hosted feature flags.
 
@@ -32,10 +32,12 @@ For detailed API documentation, see the [OpenAPI specification](./docs/api/opena
 2.  **Set up Environment Variables:**
     Create a `.env` file or export these variables.
     *   `API_KEYS`: JSON string for local auth (e.g., `{"local": "secret"}`).
-    *   `LLM_PROVIDERS`: Comma-separated list of providers to enable (e.g., `openai,gemini`).
+    *   `LLM_CONFIG`: JSON object mapping provider names to model names (e.g., `{"deepseek":"deepseek-chat","openai":"gpt-4o","gemini":"gemini-1.5-pro","openrouter":"x-ai/grok-4.1-fast"}`). If not set, falls back to `LLM_PROVIDERS` (deprecated).
     *   `OPENAI_API_KEY`: Required if using OpenAI.
     *   `GEMINI_API_KEY`: Required if using Gemini.
     *   `DEEPSEEK_API_KEY`: Required if using DeepSeek.
+    *   `OPENROUTER_API_KEY`: Required if using OpenRouter.
+    *   `OPENAI_CUSTOM_API_KEY` and `OPENAI_CUSTOM_BASE_URL`: Required if using custom OpenAI-compatible endpoint.
     *   `GCP_PROJECT_ID`: (Optional) Required if you want to test Google Secret Manager integration; otherwise, it falls back to env vars.
 
 3.  **Run the service:**

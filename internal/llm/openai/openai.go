@@ -21,13 +21,19 @@ func NewOpenAI(llm llms.Model) provider.LLMClient {
 	return &OpenAIClient{llm: llm}
 }
 
-func NewClient(ctx context.Context, secretsClient secrets.Client) (provider.LLMClient, error) {
+func NewClient(ctx context.Context, secretsClient secrets.Client, model string) (provider.LLMClient, error) {
 	apiKey, err := secrets.Get(ctx, secretsClient, "OPENAI_API_KEY")
 	if err != nil {
 		return nil, errors.New("OPENAI_API_KEY secret or environment variable not set")
 	}
 
-	llm, err := openai.New(openai.WithToken(apiKey))
+	var opts []openai.Option
+	opts = append(opts, openai.WithToken(apiKey))
+	if model != "" {
+		opts = append(opts, openai.WithModel(model))
+	}
+
+	llm, err := openai.New(opts...)
 	if err != nil {
 		return nil, err
 	}

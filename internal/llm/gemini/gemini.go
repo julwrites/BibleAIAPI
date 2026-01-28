@@ -21,13 +21,19 @@ func NewGemini(llm llms.Model) provider.LLMClient {
 	return &GeminiClient{llm: llm}
 }
 
-func NewClient(ctx context.Context, secretsClient secrets.Client) (provider.LLMClient, error) {
+func NewClient(ctx context.Context, secretsClient secrets.Client, model string) (provider.LLMClient, error) {
 	apiKey, err := secrets.Get(ctx, secretsClient, "GEMINI_API_KEY")
 	if err != nil {
 		return nil, errors.New("GEMINI_API_KEY secret or environment variable not set")
 	}
 
-	llm, err := googleai.New(ctx, googleai.WithAPIKey(apiKey))
+	var opts []googleai.Option
+	opts = append(opts, googleai.WithAPIKey(apiKey))
+	if model != "" {
+		opts = append(opts, googleai.WithDefaultModel(model))
+	}
+
+	llm, err := googleai.New(ctx, opts...)
 	if err != nil {
 		return nil, err
 	}

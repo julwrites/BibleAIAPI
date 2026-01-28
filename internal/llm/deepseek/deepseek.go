@@ -21,7 +21,7 @@ func NewDeepseek(llm llms.Model) provider.LLMClient {
 	return &DeepseekClient{llm: llm}
 }
 
-func NewClient(ctx context.Context, secretsClient secrets.Client) (provider.LLMClient, error) {
+func NewClient(ctx context.Context, secretsClient secrets.Client, model string) (provider.LLMClient, error) {
 	apiKey, err := secrets.Get(ctx, secretsClient, "DEEPSEEK_API_KEY")
 	if err != nil {
 		return nil, errors.New("DEEPSEEK_API_KEY secret or environment variable not set")
@@ -29,7 +29,13 @@ func NewClient(ctx context.Context, secretsClient secrets.Client) (provider.LLMC
 
 	baseURL := "https://api.deepseek.com"
 
-	llm, err := openai.New(openai.WithToken(apiKey), openai.WithBaseURL(baseURL))
+	var opts []openai.Option
+	opts = append(opts, openai.WithToken(apiKey), openai.WithBaseURL(baseURL))
+	if model != "" {
+		opts = append(opts, openai.WithModel(model))
+	}
+
+	llm, err := openai.New(opts...)
 	if err != nil {
 		return nil, err
 	}

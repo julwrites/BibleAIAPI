@@ -70,7 +70,7 @@ gcloud run deploy bible-api-service \
     --region <gcp-region> \
     --allow-unauthenticated \
     --max-instances 10 \
-    --set-env-vars="GCP_PROJECT_ID=<your-project-id>,LLM_PROVIDERS=openai,gemini,OPENAI_API_KEY=<your-openai-key>,GEMINI_API_KEY=<your-gemini-key>"
+    --set-env-vars="GCP_PROJECT_ID=<your-project-id>,LLM_CONFIG={\"openai\":\"gpt-4o\",\"gemini\":\"gemini-1.5-pro\"},OPENAI_API_KEY=<your-openai-key>,GEMINI_API_KEY=<your-gemini-key>"
 ```
 
 *Note: The `--allow-unauthenticated` flag is used because the service implements its own API Key authentication via `X-API-KEY` header.*
@@ -93,8 +93,11 @@ For high-volume services or strict DDOS mitigation, consider **Google Cloud Armo
 | :--- | :--- | :--- |
 | `GCP_PROJECT_ID` | Google Cloud Project ID (for Secrets). | **Yes** |
 | `API_KEYS` | JSON string of client keys (if not using Secret Manager). | Optional (Fallback) |
-| `LLM_PROVIDERS` | Comma-separated list of providers. | **Yes** |
+| `LLM_CONFIG` | JSON object mapping provider names to model names (e.g., `{"openai":"gpt-4o","gemini":"gemini-1.5-pro"}`). If not set, falls back to deprecated `LLM_PROVIDERS`. | **Yes** |
 | `OPENAI_API_KEY` | API Key for OpenAI. | Optional (if using OpenAI) |
 | `GEMINI_API_KEY` | API Key for Gemini. | Optional (if using Gemini) |
 | `DEEPSEEK_API_KEY` | API Key for DeepSeek. | Optional (if using DeepSeek) |
 | `BIBLE_PROVIDER` | Bible data source (`biblegateway`, `biblehub`, `biblenow`). Default: `biblegateway` | Optional |
+| `OPENROUTER_API_KEY` | API Key for OpenRouter. | Optional (if using OpenRouter) |
+| `OPENAI_CUSTOM_API_KEY` | API Key for custom OpenAI-compatible endpoint. | Optional (if using custom OpenAI-compatible endpoint) |
+| `OPENAI_CUSTOM_BASE_URL` | Base URL for custom OpenAI-compatible endpoint. | Optional (if using custom OpenAI-compatible endpoint) |

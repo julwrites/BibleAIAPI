@@ -32,7 +32,7 @@ func TestNewClient(t *testing.T) {
 
 	t.Run("No API key", func(t *testing.T) {
 		os.Unsetenv("GEMINI_API_KEY")
-		_, err := NewClient(context.Background(), secretsClient)
+		_, err := NewClient(context.Background(), secretsClient, "")
 		if err == nil {
 			t.Error("expected error when GEMINI_API_KEY is not set")
 		}
@@ -40,7 +40,7 @@ func TestNewClient(t *testing.T) {
 
 	t.Run("API key set", func(t *testing.T) {
 		os.Setenv("GEMINI_API_KEY", "test-key")
-		client, err := NewClient(context.Background(), secretsClient)
+		client, err := NewClient(context.Background(), secretsClient, "")
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)
 		}

@@ -22,7 +22,7 @@ The Bible API Service is a stateless microservice designed for serverless enviro
 
 -   **Handlers**: Contain the main business logic. The `QueryHandler` determines the type of request.
 -   **Bible Gateway Client**: Scrapes verse data from `classic.biblegateway.com`. It intelligently parses HTML, distinguishing between prose and poetry to preserve formatting.
--   **LLM Client**: A modular client for interacting with LLMs. It supports multiple providers (OpenAI, Gemini, DeepSeek, etc.) via a common interface and includes a fallback mechanism.
+-   **LLM Client**: A modular client for interacting with LLMs. It supports multiple providers (OpenAI, Gemini, DeepSeek, OpenRouter, custom OpenAI-compatible endpoints) via a common interface and includes a fallback mechanism.
 -   **Chat Service**: Orchestrates the interaction between the API handler and the LLM client, managing context and schemas.
 -   **Feature Flag Service**: Integrates with `go-feature-flag`. It attempts to retrieve configuration from the GitHub repository (`julwrites/BibleAIAPI`) and falls back to a local file (`configs/flags.yaml`) if needed.
 -   **Secret Service**: Abstraction for secret retrieval. It prioritizes Google Secret Manager but falls back to environment variables for local development.
@@ -59,6 +59,6 @@ The `QueryHandler` inspects the request payload (`query` object) and routes it b
     -   If `context.schema` is not provided, a default "Open Query" schema is used.
 3.  Handler calls the `ChatService`.
 4.  `ChatService` invokes the `LLMClient`.
-5.  `LLMClient` attempts to call the configured providers (defined in `LLM_PROVIDERS`) in order.
+5.  `LLMClient` attempts to call the configured providers (defined in `LLM_CONFIG` JSON or deprecated `LLM_PROVIDERS`) in order.
 6.  If a provider fails, the next one is tried (Fallback).
 7.  Structured response is returned to the client.
