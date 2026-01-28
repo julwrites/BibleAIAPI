@@ -105,8 +105,6 @@ func NewFallbackClient(ctx context.Context, secretsClient secrets.Client) (*Fall
 		return nil, err
 	}
 
-	providers := strings.Split(providerNames, ",")
-	clients := make([]provider.LLMClient, 0, len(providers))
 	clientsMap := make(map[string]provider.LLMClient)
 	log.Printf("LLM provider order: %v", providerOrder)
 
