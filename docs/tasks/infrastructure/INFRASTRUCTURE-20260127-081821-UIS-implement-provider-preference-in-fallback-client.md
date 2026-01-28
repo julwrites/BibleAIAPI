@@ -1,6 +1,6 @@
 ---
 id: INFRASTRUCTURE-20260127-081821-UIS
-status: pending
+status: completed
 title: Implement Provider Preference in Fallback Client
 priority: medium
 created: 2026-01-27 08:18:21
