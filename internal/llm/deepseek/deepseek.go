@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log"
 
 	"bible-api-service/internal/llm/provider"
 	"bible-api-service/internal/secrets"
@@ -72,7 +73,32 @@ func (c *DeepseekClient) Query(ctx context.Context, prompt string, schemaJSON st
 }
 
 func (c *DeepseekClient) Stream(ctx context.Context, prompt string) (<-chan string, string, error) {
-	return nil, "deepseek", errors.New("not implemented")
+	ch := make(chan string)
+
+	go func() {
+		defer close(ch)
+
+		messages := []llms.MessageContent{
+			{
+				Role: llms.ChatMessageTypeHuman,
+				Parts: []llms.ContentPart{
+					llms.TextPart(prompt),
+				},
+			},
+		}
+
+		if _, err := c.llm.GenerateContent(ctx,
+			messages,
+			llms.WithStreamingFunc(func(ctx context.Context, chunk []byte) error {
+				ch <- string(chunk)
+				return nil
+			}),
+		); err != nil {
+			log.Printf("deepseek: stream generation failed: %v", err)
+		}
+	}()
+
+	return ch, "deepseek", nil
 }
 
 func (c *DeepseekClient) Name() string {

@@ -121,3 +121,45 @@ func TestDeepseekClient_Query(t *testing.T) {
 		})
 	}
 }
+
+func TestDeepseekClient_Stream(t *testing.T) {
+	mockChunks := []string{"chunk1", "chunk2"}
+
+	mock := &mockLLM{
+		generateContentFunc: func(ctx context.Context, messages []llms.MessageContent, options ...llms.CallOption) (*llms.ContentResponse, error) {
+			opts := llms.CallOptions{}
+			for _, opt := range options {
+				opt(&opts)
+			}
+
+			if opts.StreamingFunc != nil {
+				for _, chunk := range mockChunks {
+					if err := opts.StreamingFunc(ctx, []byte(chunk)); err != nil {
+						return nil, err
+					}
+				}
+			}
+
+			return &llms.ContentResponse{}, nil
+		},
+	}
+
+	client := NewDeepseek(mock)
+	ch, providerName, err := client.Stream(context.Background(), "test prompt")
+
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if providerName != "deepseek" {
+		t.Errorf("unexpected provider name: got %q, want %q", providerName, "deepseek")
+	}
+
+	var received []string
+	for chunk := range ch {
+		received = append(received, chunk)
+	}
+
+	if !cmp.Equal(received, mockChunks) {
+		t.Errorf("unexpected chunks: got %v, want %v", received, mockChunks)
+	}
+}
