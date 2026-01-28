@@ -137,6 +137,12 @@ func (s *Scraper) GetVerse(book, chapter, verse, version string) (string, error)
 			return
 		}
 
+		// Filter out common non-book links
+		slug := parts[1]
+		if slug == "introduction" || slug == "preface" || slug == "index" || slug == "contents" {
+			return
+		}
+
 		if seen[href] {
 			return
 		}
