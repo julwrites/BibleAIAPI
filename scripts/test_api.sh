@@ -89,7 +89,7 @@ make_request "Word Search ('grace')" '{"query": {"words": ["grace"]}, "context":
 if [ -n "$OPENAI_API_KEY" ] || [ -n "$GEMINI_API_KEY" ] || [ -n "$DEEPSEEK_API_KEY" ]; then
     echo -e "\n${GREEN}=== Test: LLM Open Query (Who is Jesus?) ===${NC}"
     # Note: This requires external internet access and valid keys
-    make_request "Open Query" '{"query": {"oquery": "Who is Jesus?"}, "context": {"user": {"version": "ESV"}}}'
+    make_request "Open Query" '{"query": {"prompt": "Who is Jesus?"}, "context": {"user": {"version": "ESV"}}}'
 else
     echo -e "\n${RED}Skipping LLM tests (No API keys found in environment).${NC}"
 fi
