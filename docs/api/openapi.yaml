@@ -91,6 +91,10 @@ paths:
                   - $ref: '#/components/schemas/WordSearchResponse'
                   - $ref: '#/components/schemas/PromptResponse'
                   - type: object
+            text/event-stream:
+              schema:
+                type: string
+                description: "Server-Sent Events stream for real-time prompt responses."
         '400':
           description: Bad Request
           content:
@@ -167,6 +171,16 @@ components:
                 version:
                   type: string
                   example: "ESV"
+                ai_provider:
+                  type: string
+                  example: "openai"
+        options:
+          type: object
+          properties:
+            stream:
+              type: boolean
+              default: false
+              description: "Whether to stream the response (Server-Sent Events) for prompt queries."
 
     VersionsResponse:
       type: object
@@ -191,12 +205,19 @@ components:
         name:
           type: string
           example: "New International Version (NIV)"
-        value:
+        code:
           type: string
           example: "NIV"
         language:
           type: string
-          example: "English (EN)"
+          example: "English"
+        providers:
+          type: object
+          additionalProperties:
+            type: string
+          example:
+            biblegateway: "NIV"
+            biblecom: "111"
 
     PromptResponse:
       type: object
