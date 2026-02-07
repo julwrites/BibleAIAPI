@@ -5,13 +5,13 @@ meta {
 }
 
 post {
-  url: http://localhost:8085/query
+  url: {{baseUrl}}/query
   body: json
   auth: inherit
 }
 
 headers {
-  X-API-Key: secretapikey
+  X-API-Key: {{apiKey}}
   Content-Type: application/json
 }
 
