@@ -25,4 +25,4 @@ fi
 echo "Running regression tests against: $BASE_URL"
 
 # Run Bruno tests
-bru run "docs/api/tests" --env "Staging" --env-var "baseUrl=$BASE_URL"
+bru run "docs/api/tests" --env "Staging" --env-var "baseUrl=$BASE_URL" --env-var "apiKey=$API_TEST_KEY"

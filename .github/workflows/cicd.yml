@@ -130,6 +130,8 @@ jobs:
 
       - name: Run Regression Tests (Staging)
         if: github.ref == 'refs/heads/staging'
+        env:
+          API_TEST_KEY: ${{ secrets.API_TEST_KEY }}
         run: |
           npm install -g @usebruno/cli
           export BASE_URL=$(gcloud run services describe ${{ env.CLOUD_RUN_SERVICE }} --region asia-southeast1 --format 'value(status.url)')
