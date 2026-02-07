@@ -1,0 +1,29 @@
+meta {
+  name: Version List
+  type: http
+  seq: 9
+}
+
+get {
+  url: https://bible-api-service-779024060388.asia-southeast1.run.app/bible-versions
+  body: json
+  auth: inherit
+}
+
+headers {
+  X-API-Key: 579b50a8d1fb4a44533c579921caecd21db54580e4e529363156fa9bc056f726
+  Content-Type: application/json
+}
+
+body:json {
+  {
+      "page": 1,
+      "limit": 20,
+      "language": "Eng"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

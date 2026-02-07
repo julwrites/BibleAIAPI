@@ -1,0 +1,19 @@
+{
+  "version": "1",
+  "name": "Staging",
+  "type": "environment",
+  "variables": [
+    {
+      "name": "baseUrl",
+      "value": "{{process.env.BASE_URL}}",
+      "enabled": true,
+      "secret": false
+    },
+    {
+      "name": "apiKey",
+      "value": "secretapikey",
+      "enabled": true,
+      "secret": true
+    }
+  ]
+}
