@@ -18,8 +18,8 @@ func TestNew(t *testing.T) {
 func TestNewClient(t *testing.T) {
 	// This test verifies that the NewClient function falls back to the
 	// environment variable client when it fails to create a Google Secret
-	// Manager client. This is the expected behavior in a local test
 	// environment where credentials are not available.
+	t.Setenv("GOOGLE_APPLICATION_CREDENTIALS", "/nonexistent")
 	client, err := NewClient(context.Background(), "test-project")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

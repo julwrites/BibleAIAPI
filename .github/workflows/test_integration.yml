@@ -1,0 +1,39 @@
+name: Integration Tests
+
+on:
+  pull_request:
+    branches:
+      - main
+  pull_request_target:
+    branches:
+      - main
+
+jobs:
+  bible:
+    name: Bible Integration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+      - name: Run Bible Integration Tests
+        run: go test -v -tags=integration ./tests/integration/bible_test.go
+
+  llm:
+    name: LLM Integration
+    if: github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+      - name: Run LLM Integration Tests
+        env:
+          # Secrets needed for LLM providers
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          LLM_CONFIG: ${{ secrets.LLM_CONFIG }}
+        run: go test -v -tags=integration_llm ./tests/integration/llm_test.go
