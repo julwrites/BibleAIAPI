@@ -5,22 +5,14 @@ meta {
 }
 
 get {
-  url: https://bible-api-service-779024060388.asia-southeast1.run.app/bible-versions
-  body: json
+  url: {{baseUrl}}/bible-versions?page=1&limit=20&language=Eng
+  body: none
   auth: inherit
 }
 
 headers {
-  X-API-Key: 579b50a8d1fb4a44533c579921caecd21db54580e4e529363156fa9bc056f726
+  X-API-Key: {{apiKey}}
   Content-Type: application/json
-}
-
-body:json {
-  {
-      "page": 1,
-      "limit": 20,
-      "language": "Eng"
-  }
 }
 
 settings {
