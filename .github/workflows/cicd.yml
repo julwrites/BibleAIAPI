@@ -100,6 +100,9 @@ jobs:
       IMAGE_TAG: ${{ needs.build-and-test.outputs.image_tag }}
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Download Docker image artifact
         uses: actions/download-artifact@v4
         with:
