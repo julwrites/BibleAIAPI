@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"bible-api-service/internal/bible"
+	"bible-api-service/internal/util"
 
 	"github.com/PuerkitoBio/goquery"
 )
@@ -157,77 +158,119 @@ func (s *Scraper) GetVerse(book, chapter, verse, version string) (string, error)
 
 	bookURLPath := bookLinks[bookIndex]
 
-	// 4. Construct Chapter URL
-	chapterURL := fmt.Sprintf("%s%s/%s", s.baseURL, bookURLPath, chapter)
-
-	// 5. Fetch Chapter and scrape verses
-	req, err = http.NewRequest("GET", chapterURL, nil)
-	if err != nil {
-		return "", err
-	}
-	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; BibleAIAPI/1.0)")
-
-	res, err = s.client.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer res.Body.Close()
-
-	if res.StatusCode != 200 {
-		return "", fmt.Errorf("failed to fetch chapter, status code: %d", res.StatusCode)
-	}
-
-	doc, err = goquery.NewDocumentFromReader(res.Body)
-	if err != nil {
-		return "", err
-	}
-
+	// 4. Determine Chapter Range
 	startVerse := 1
 	endVerse := 999
+	endChapter := 0
+
+	startChapterVal, err := strconv.Atoi(chapter)
+	if err != nil {
+		return "", fmt.Errorf("invalid chapter format: %v", err)
+	}
 
 	if verse != "" {
-		start, end, err := parseVerseRange(verse)
+		parsed, err := util.ParseVerseRange(verse)
 		if err != nil {
 			return "", fmt.Errorf("invalid verse range: %v", err)
 		}
-		startVerse = start
-		endVerse = end
+		startVerse = parsed.StartVerse
+		endVerse = parsed.EndVerse
+		if parsed.IsCrossChapter {
+			endChapter = parsed.EndChapter
+		} else {
+			endChapter = startChapterVal
+		}
+	} else {
+		endChapter = startChapterVal
 	}
 
-	var textBuilder strings.Builder
+	var allTextBuilder strings.Builder
 
-	// Find all verses in the chapter content
-	doc.Find("div.chapter-content a.list-group-item p.verse").Each(func(i int, sel *goquery.Selection) {
-		verseNumSpan := sel.Find("span")
-		verseNumStr := strings.TrimSpace(verseNumSpan.Text())
-		verseNum, err := strconv.Atoi(verseNumStr)
+	for currentChap := startChapterVal; currentChap <= endChapter; currentChap++ {
+		currentStartV := 1
+		currentEndV := 999
+
+		if currentChap == startChapterVal {
+			currentStartV = startVerse
+		}
+		if currentChap == endChapter {
+			currentEndV = endVerse
+		}
+
+		// 4b. Construct Chapter URL
+		chapterURL := fmt.Sprintf("%s%s/%d", s.baseURL, bookURLPath, currentChap)
+
+		// 5. Fetch Chapter and scrape verses
+		req, err = http.NewRequest("GET", chapterURL, nil)
 		if err != nil {
-			return
+			return "", err
+		}
+		req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; BibleAIAPI/1.0)")
+
+		res, err = s.client.Do(req)
+		if err != nil {
+			return "", fmt.Errorf("failed to fetch chapter %d: %v", currentChap, err)
+		}
+		defer res.Body.Close()
+
+		if res.StatusCode != 200 {
+			return "", fmt.Errorf("failed to fetch chapter %d, status code: %d", currentChap, res.StatusCode)
 		}
 
-		if verseNum >= startVerse && verseNum <= endVerse {
-			var verseTextBuilder strings.Builder
-			sel.Contents().Each(func(j int, node *goquery.Selection) {
-				if node.Is("span") {
-					return
-				}
-				verseTextBuilder.WriteString(node.Text())
-			})
+		doc, err = goquery.NewDocumentFromReader(res.Body)
+		if err != nil {
+			return "", err
+		}
 
-			text := strings.TrimSpace(verseTextBuilder.String())
-			if textBuilder.Len() > 0 {
-				textBuilder.WriteString(" ")
+		var chapterTextBuilder strings.Builder
+
+		// Find all verses in the chapter content
+		doc.Find("div.chapter-content a.list-group-item p.verse").Each(func(i int, sel *goquery.Selection) {
+			verseNumSpan := sel.Find("span")
+			verseNumStr := strings.TrimSpace(verseNumSpan.Text())
+			verseNum, err := strconv.Atoi(verseNumStr)
+			if err != nil {
+				return
 			}
-			textBuilder.WriteString(text)
-		}
-	})
 
-	result := textBuilder.String()
-	if result == "" {
+			if verseNum >= currentStartV && verseNum <= currentEndV {
+				var verseTextBuilder strings.Builder
+				sel.Contents().Each(func(j int, node *goquery.Selection) {
+					if node.Is("span") {
+						return
+					}
+					verseTextBuilder.WriteString(node.Text())
+				})
+
+				text := strings.TrimSpace(verseTextBuilder.String())
+				if chapterTextBuilder.Len() > 0 {
+					chapterTextBuilder.WriteString(" ")
+				}
+				chapterTextBuilder.WriteString(text)
+			}
+		})
+
+		chapterResult := chapterTextBuilder.String()
+		// If looking for specific verses and found none, proceed cautiously.
+		// However, returning error for partial failure might be too strict if chapter boundaries are fuzzy.
+		// But let's assume we want strict retrieval.
+		if chapterResult == "" && (currentChap == startChapterVal || currentChap == endChapter) && verse != "" {
+			// If not found in start or end chapter, it's likely an error.
+			// But maybe just continue?
+		}
+
+		if allTextBuilder.Len() > 0 {
+			allTextBuilder.WriteString("\n")
+		}
+		allTextBuilder.WriteString(chapterResult)
+	}
+
+	finalResult := strings.TrimSpace(allTextBuilder.String())
+	if finalResult == "" {
 		return "", fmt.Errorf("verses not found")
 	}
 
-	return result, nil
+	return finalResult, nil
 }
 
 // SearchWords is not supported on BibleNow.
@@ -235,25 +278,6 @@ func (s *Scraper) SearchWords(query, version string) ([]bible.SearchResult, erro
 	return nil, fmt.Errorf("search not supported on BibleNow")
 }
 
-func parseVerseRange(verse string) (int, int, error) {
-	parts := strings.Split(verse, "-")
-	start, err := strconv.Atoi(strings.TrimSpace(parts[0]))
-	if err != nil {
-		return 0, 0, err
-	}
-
-	end := start
-	if len(parts) > 1 {
-		end, err = strconv.Atoi(strings.TrimSpace(parts[1]))
-		if err != nil {
-			return 0, 0, err
-		}
-	}
-
-	return start, end, nil
-}
-
-// GetVersionSlug returns the slug for a given version code.
 func GetVersionSlug(version string) string {
 	v := strings.ToUpper(version)
 	switch v {
@@ -276,4 +300,3 @@ func GetVersionSlug(version string) string {
 		return strings.ToLower(strings.ReplaceAll(version, " ", "-"))
 	}
 }
-

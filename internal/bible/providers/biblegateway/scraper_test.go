@@ -195,3 +195,35 @@ func TestSearchWords_ServerError(t *testing.T) {
 		t.Fatal("expected an error, but got nil")
 	}
 }
+
+func TestGetVerse_CrossChapterQuery(t *testing.T) {
+	// We want to verify that the URL is constructed correctly for cross-chapter references.
+	// We don't care about the HTML response here, just the request URL.
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Check the query string
+		q := r.URL.Query()
+		search := q.Get("search")
+
+		// Expected: John 1:12-2:4
+		// The browser/client might encode it differently, but it should be equivalent.
+		// "John 1:12-2:4"
+
+		if search != "John 1:12-2:4" {
+			t.Errorf("expected search query 'John 1:12-2:4', got '%s'", search)
+		}
+
+		// Return dummy HTML to avoid error
+		fmt.Fprintln(w, `<div class="passage-text">OK</div>`)
+	}))
+	defer server.Close()
+
+	scraper := &Scraper{client: server.Client(), baseURL: server.URL}
+
+	// effectively what happens after ParseVerseReference("John 1:12-2:4")
+	// book="John", chapter="1", verse="12-2:4"
+	_, err := scraper.GetVerse("John", "1", "12-2:4", "ESV")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}

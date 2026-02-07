@@ -54,6 +54,13 @@ func TestParseVerseReference(t *testing.T) {
 			wantVerse:   "",
 			wantErr:     true,
 		},
+		{
+			ref:         "John 1:12-2:4",
+			wantBook:    "John",
+			wantChapter: "1",
+			wantVerse:   "12-2:4",
+			wantErr:     false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -71,6 +78,78 @@ func TestParseVerseReference(t *testing.T) {
 			}
 			if gotVerse != tt.wantVerse {
 				t.Errorf("ParseVerseReference() gotVerse = %v, want %v", gotVerse, tt.wantVerse)
+			}
+		})
+	}
+}
+
+func TestParseVerseRange(t *testing.T) {
+	tests := []struct {
+		verseStr string
+		want     ParsedVerseRange
+		wantErr  bool
+	}{
+		{
+			verseStr: "16",
+			want: ParsedVerseRange{
+				StartVerse:     16,
+				EndVerse:       16,
+				EndChapter:     0,
+				IsCrossChapter: false,
+			},
+			wantErr: false,
+		},
+		{
+			verseStr: "16-20",
+			want: ParsedVerseRange{
+				StartVerse:     16,
+				EndVerse:       20,
+				EndChapter:     0,
+				IsCrossChapter: false,
+			},
+			wantErr: false,
+		},
+		{
+			verseStr: "12-2:4",
+			want: ParsedVerseRange{
+				StartVerse:     12,
+				EndVerse:       4,
+				EndChapter:     2,
+				IsCrossChapter: true,
+			},
+			wantErr: false,
+		},
+		{
+			verseStr: "invalid",
+			want:     ParsedVerseRange{},
+			wantErr:  true,
+		},
+		{
+			verseStr: "12-invalid",
+			want:     ParsedVerseRange{},
+			wantErr:  true,
+		},
+		{
+			verseStr: "12-2:invalid",
+			want:     ParsedVerseRange{},
+			wantErr:  true,
+		},
+		{
+			verseStr: "",
+			want:     ParsedVerseRange{},
+			wantErr:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.verseStr, func(t *testing.T) {
+			got, err := ParseVerseRange(tt.verseStr)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseVerseRange() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("ParseVerseRange() = %v, want %v", got, tt.want)
 			}
 		})
 	}

@@ -27,6 +27,19 @@ func TestGetVerse(t *testing.T) {
 </body>
 </html>
 			`)
+		} else if r.URL.Path == "/esv/john/1.htm" {
+			fmt.Fprintln(w, `
+<html><body><p class="regular">
+<span class="reftext">12</span>But to all who did receive him, who believed in his name, he gave the right to become children of God,
+</p></body></html>`)
+		} else if r.URL.Path == "/esv/john/2.htm" {
+			fmt.Fprintln(w, `
+<html><body><p class="regular">
+<span class="reftext">1</span>On the third day there was a wedding at Cana in Galilee, and the mother of Jesus was there.
+<span class="reftext">2</span>Jesus also was invited to the wedding with his disciples.
+<span class="reftext">3</span>When the wine ran out, the mother of Jesus said to him, “They have no wine.”
+<span class="reftext">4</span>And Jesus said to her, “Woman, what does this have to do with me? My hour has not yet come.”
+</p></body></html>`)
 		} else {
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -50,6 +63,13 @@ func TestGetVerse(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Contains(t, verse, "For God so loved the world")
 	assert.Contains(t, verse, "For God did not send his Son")
+
+	// Test case 3: Cross-chapter range
+	verse, err = scraper.GetVerse("John", "1", "12-2:4", "esv")
+	assert.NoError(t, err)
+	assert.Contains(t, verse, "But to all who did receive him") // 1:12
+	assert.Contains(t, verse, "On the third day")               // 2:1
+	assert.Contains(t, verse, "And Jesus said to her")          // 2:4
 }
 
 func TestSearchWords(t *testing.T) {
