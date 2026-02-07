@@ -19,6 +19,7 @@ var allowedTags = map[string]bool{
 	"h3":   true,
 	"h4":   true,
 	"p":    true,
+	"span": true,
 	"i":    true,
 	"br":   true,
 	"sup":  true, // Preserved for verse numbers
@@ -83,6 +84,18 @@ func unwrapSmallCaps(s *goquery.Selection) {
 	s.Find(".small-caps").Each(func(i int, sel *goquery.Selection) {
 		sel.ReplaceWithHtml(sel.Text())
 	})
+}
+
+func unwrapSpecificClasses(s *goquery.Selection) {
+	// Classes to unwrap to prevent text fragmentation (e.g. Words of Jesus)
+	unwantedClasses := []string{".woj"}
+
+	for _, cls := range unwantedClasses {
+		s.Find(cls).Each(func(i int, sel *goquery.Selection) {
+			html, _ := sel.Html()
+			sel.ReplaceWithHtml(html)
+		})
+	}
 }
 
 func removeAllAttributes(s *goquery.Selection) {
@@ -196,6 +209,7 @@ func sanitizeSelection(s *goquery.Selection) (string, error) {
 	}
 
 	strictSanitize(s)
+	unwrapSpecificClasses(s)
 	unwrapRedundantSpans(s)
 	removeAllAttributes(s)
 	removeEmptyParagraphs(s)

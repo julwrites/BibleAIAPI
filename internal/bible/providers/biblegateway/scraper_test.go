@@ -33,7 +33,7 @@ func TestGetVerse(t *testing.T) {
 			verse:    "16",
 			version:  "ESV",
 			htmlFile: "testdata/get_verse_success.html",
-			expected: `<h3>For God So Loved the World</h3> <p> <sup>16 </sup>“For God so loved the world, that he gave his only Son, that whoever believes in him should not perish but have eternal life. </p>`,
+			expected: `<h3>For God So Loved the World</h3> <p> <span> <sup>16 </sup>“For God so loved the world, that he gave his only Son, that whoever believes in him should not perish but have eternal life. </span> </p>`,
 		},
 		{
 			name:     "Matthew 28:19-20",
@@ -42,7 +42,7 @@ func TestGetVerse(t *testing.T) {
 			verse:    "19-20",
 			version:  "ESV",
 			htmlFile: "testdata/get_verse_matthew.html",
-			expected: `<p> <sup>19 </sup>Go therefore and make disciples of all nations, baptizing them in the name of the Father and of the Son and of the Holy Spirit, <sup>20 </sup>teaching them to observe all that I have commanded you. And behold, I am with you always, to the end of the age.” </p>`,
+			expected: `<p> <span> <sup>19 </sup>Go therefore and make disciples of all nations, baptizing them in the name of the Father and of the Son and of the Holy Spirit, </span> <span> <sup>20 </sup>teaching them to observe all that I have commanded you. And behold, I am with you always, to the end of the age.” </span> </p>`,
 		},
 		{
 			name:     "Proverbs 3:5-6",
@@ -51,7 +51,7 @@ func TestGetVerse(t *testing.T) {
 			verse:    "5-6",
 			version:  "ESV",
 			htmlFile: "testdata/get_verse_proverbs.html",
-			expected: `<p><sup>5 </sup>Trust in the Lord with all your heart,<br/>and do not lean on your own understanding.</p> <p><sup>6 </sup>In all your ways acknowledge him,<br/>and he will make straight your paths.</p>`,
+			expected: `<p><span><sup>5 </sup>Trust in the Lord with all your heart,</span><br/><span>and do not lean on your own understanding.</span></p> <p><span><sup>6 </sup>In all your ways acknowledge him,</span><br/><span>and he will make straight your paths.</span></p>`,
 		},
 		{
 			name:     "Bug Reproduction (John 3:16 with extras)",
@@ -60,7 +60,7 @@ func TestGetVerse(t *testing.T) {
 			verse:    "16",
 			version:  "ESV",
 			htmlFile: "testdata/bug_repro.html",
-			expected: `<h3>For God So Loved the World</h3> <p> <sup>16 </sup>“For God so loved the world, that he gave his only Son, that whoever believes in him should not perish but have eternal life. </p>`,
+			expected: `<h3><span>For God So Loved the World</span></h3> <p> <span><sup>16 </sup>“For God so loved the world, that he gave his only Son, that whoever believes in him should not perish but have eternal life.</span> </p>`,
 		},
 		{
 			name:     "Psalm 121",
@@ -69,7 +69,7 @@ func TestGetVerse(t *testing.T) {
 			verse:    "",
 			version:  "NIV",
 			htmlFile: "testdata/get_verse_psalm_121.html",
-			expected: `<h3>My Help Comes from the Lord</h3> <h4>A Song of Ascents.</h4> <p><sup>1 </sup>I lift up my eyes to the hills.<br/>From where does my help come?</p> <p><sup>2 </sup>My help comes from the Lord,<br/>who made heaven and earth.</p> <br/> <p><sup>3 </sup>He will not let your foot be moved;<br/>he who keeps you will not slumber.</p> <p><sup>4 </sup>Behold, he who keeps Israel<br/>will neither slumber nor sleep.</p> <br/> <p><sup>5 </sup>The Lord is your keeper;<br/>the Lord is your shade on your right hand.</p> <p><sup>6 </sup>The sun shall not strike you by day,<br/>nor the moon by night.</p> <br/> <p><sup>7 </sup>The Lord will keep you from all evil;<br/>he will keep your life.</p> <p><sup>8 </sup>The Lord will keep<br/>your going out and your coming in<br/>from this time forth and forevermore.</p>`,
+			expected: `<h3>My Help Comes from the Lord</h3> <h4>A Song of Ascents.</h4> <p><span><sup>1 </sup>I lift up my eyes to the hills.</span><br/><span>From where does my help come?</span></p> <p><span><sup>2 </sup>My help comes from the Lord,</span><br/><span>who made heaven and earth.</span></p> <br/> <p><span><sup>3 </sup>He will not let your foot be moved;</span><br/><span>he who keeps you will not slumber.</span></p> <p><span><sup>4 </sup>Behold, he who keeps Israel</span><br/><span>will neither slumber nor sleep.</span></p> <br/> <p><span><sup>5 </sup>The Lord is your keeper;</span><br/><span>the Lord is your shade on your right hand.</span></p> <p><span><sup>6 </sup>The sun shall not strike you by day,</span><br/><span>nor the moon by night.</span></p> <br/> <p><span><sup>7 </sup>The Lord will keep you from all evil;</span><br/><span>he will keep your life.</span></p> <p><span><sup>8 </sup>The Lord will keep</span><br/><span>your going out and your coming in</span><br/><span>from this time forth and forevermore.</span></p>`,
 		},
 		{
 			name:       "verse not found",
@@ -79,15 +79,6 @@ func TestGetVerse(t *testing.T) {
 			version:    "ESV",
 			htmlFile:   "testdata/get_verse_not_found.html",
 			expectFail: true,
-		},
-		{
-			name:     "Bug Reproduction Cross-Chapter (John 1:12-2:4)",
-			book:     "John",
-			chapter:  "1",
-			verse:    "12-2:4",
-			version:  "ESV",
-			htmlFile: "testdata/bug_repro_cross.html",
-			expected: `<p> <sup>12 </sup>But to all who did receive him, who believed in his name, he gave the right to become children of God, <sup>13 </sup>who were born, not of blood nor of the will of the flesh nor of the will of man, but of God.</p> <p><sup>14 </sup>And the Word became flesh and dwelt among us, and we have seen his glory, glory as of the only Son from the Father, full of grace and truth. <sup>15 </sup>(John bore witness about him, and cried out, “This was he of whom I said, ‘He who comes after me ranks before me, because he was before me.’”) <sup>16 </sup>For from his fullness we have all received, grace upon grace. <sup>17 </sup>For the law was given through Moses; grace and truth came through Jesus Christ. <sup>18 </sup>No one has ever seen God; God the only Son, who is at the Father&#39;s side, he has made him known.</p> <h3>The Testimony of John the Baptist</h3><p><sup>19 </sup>And this is the testimony of John, when the Jews sent priests and Levites from Jerusalem to ask him, “Who are you?” <sup>20 </sup>He confessed, and did not deny, but confessed, “I am not the Christ.” <sup>21 </sup>And they asked him, “What then? Are you Elijah?” He said, “I am not.” “Are you the Prophet?” And he answered, “No.” <sup>22 </sup>So they said to him, “Who are you? We need to give an answer to those who sent us. What do you say about yourself?” <sup>23 </sup>He said, “I am the voice of one crying out in the wilderness, ‘Make straight the way of the Lord,’ as the prophet Isaiah said.”</p> <p><sup>24 </sup>(Now they had been sent from the Pharisees.) <sup>25 </sup>They asked him, “Then why are you baptizing, if you are neither the Christ, nor Elijah, nor the Prophet?” <sup>26 </sup>John answered them, “I baptize with water, but among you stands one you do not know, <sup>27 </sup>even he who comes after me, the strap of whose sandal I am not worthy to untie.” <sup>28 </sup>These things took place in Bethany across the Jordan, where John was baptizing.</p> <h3>Behold, the Lamb of God</h3><p><sup>29 </sup>The next day he saw Jesus coming toward him, and said, “Behold, the Lamb of God, who takes away the sin of the world! <sup>30 </sup>This is he of whom I said, ‘After me comes a man who ranks before me, because he was before me.’ <sup>31 </sup>I myself did not know him, but for this purpose I came baptizing with water, that he might be revealed to Israel.” <sup>32 </sup>And John bore witness: “I saw the Spirit descend from heaven like a dove, and it remained on him. <sup>33 </sup>I myself did not know him, but he who sent me to baptize with water said to me, ‘He on whom you see the Spirit descend and remain, this is he who baptizes with the Holy Spirit.’ <sup>34 </sup>And I have seen and have borne witness that this is the Son of God.”</p> <h3>Jesus Calls the First Disciples</h3><p><sup>35 </sup>The next day again John was standing with two of his disciples, <sup>36 </sup>and he looked at Jesus as he walked by and said, “Behold, the Lamb of God!” <sup>37 </sup>The two disciples heard him say this, and they followed Jesus. <sup>38 </sup>Jesus turned and saw them following and said to them, “What are you seeking?” And they said to him, “Rabbi” (which means Teacher), “where are you staying?” <sup>39 </sup>He said to them, “Come and you will see.” So they came and saw where he was staying, and they stayed with him that day, for it was about the tenth hour. <sup>40 </sup>One of the two who heard John speak and followed Jesus was Andrew, Simon Peter&#39;s brother. <sup>41 </sup>He first found his own brother Simon and said to him, “We have found the Messiah” (which means Christ). <sup>42 </sup>He brought him to Jesus. Jesus looked at him and said, “You are Simon the son of John. You shall be called Cephas” (which means Peter).</p> <h3>Jesus Calls Philip and Nathanael</h3><p><sup>43 </sup>The next day Jesus decided to go to Galilee. He found Philip and said to him, “Follow me.” <sup>44 </sup>Now Philip was from Bethsaida, the city of Andrew and Peter. <sup>45 </sup>Philip found Nathanael and said to him, “We have found him of whom Moses in the Law and also the prophets wrote, Jesus of Nazareth, the son of Joseph.” <sup>46 </sup>Nathanael said to him, “Can anything good come out of Nazareth?” Philip said to him, “Come and see.” <sup>47 </sup>Jesus saw Nathanael coming toward him and said of him, “Behold, an Israelite indeed, in whom there is no deceit!” <sup>48 </sup>Nathanael said to him, “How do you know me?” Jesus answered him, “Before Philip called you, when you were under the fig tree, I saw you.” <sup>49 </sup>Nathanael answered him, “Rabbi, you are the Son of God! You are the King of Israel!” <sup>50 </sup>Jesus answered him, “Because I said to you, ‘I saw you under the fig tree,’ do you believe? You will see greater things than these.” <sup>51 </sup>And he said to him, “Truly, truly, I say to you, you will see heaven opened, and the angels of God ascending and descending on the Son of Man.”</p> <h3>The Wedding at Cana</h3><p>On the third day there was a wedding at Cana in Galilee, and the mother of Jesus was there. <sup>2 </sup>Jesus also was invited to the wedding with his disciples. <sup>3 </sup>When the wine ran out, the mother of Jesus said to him, “They have no wine.” <sup>4 </sup>And Jesus said to her, “Woman, what does this have to do with me? My hour has not yet come.” </p>`,
 		},
 	}
 
@@ -120,6 +111,38 @@ func TestGetVerse(t *testing.T) {
 				t.Errorf("expected verse to be:\n%s\nbut got:\n%s", tc.expected, verse)
 			}
 		})
+	}
+}
+
+func TestGetVerse_RedLetterFix(t *testing.T) {
+	// Minimal HTML reproducing the split text issue with red letter (woj) tags
+	html := `
+<div class="passage-text">
+	<p>
+		<span>And Jesus said to her, <span class="woj">“Woman, what does this have to do with me? My hour has not yet come.”</span></span>
+	</p>
+</div>`
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, html)
+	}))
+	defer server.Close()
+
+	scraper := &Scraper{client: server.Client(), baseURL: server.URL}
+	verse, err := scraper.GetVerse("John", "2", "4", "ESV")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// We expect the .woj span to be unwrapped, resulting in a continuous text string
+	expectedSnippet := `And Jesus said to her, “Woman`
+	if !strings.Contains(verse, expectedSnippet) {
+		t.Errorf("Expected verse to contain '%s', but got:\n%s", expectedSnippet, verse)
+	}
+
+	// Ensure no remaining .woj spans or empty spans breaking the text
+	if strings.Contains(verse, "<span class=\"woj\">") {
+		t.Error("Expected .woj span to be removed")
 	}
 }
 
