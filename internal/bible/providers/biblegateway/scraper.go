@@ -19,7 +19,6 @@ var allowedTags = map[string]bool{
 	"h3":   true,
 	"h4":   true,
 	"p":    true,
-	"span": true,
 	"i":    true,
 	"br":   true,
 	"sup":  true, // Preserved for verse numbers
