@@ -54,7 +54,15 @@ func TestGetPollingInterval(t *testing.T) {
 
 func TestInitFeatureFlags(t *testing.T) {
 	// Create a temporary flags.yaml file
-	dir := t.TempDir()
+	if err := os.MkdirAll("tmp", 0755); err != nil {
+		t.Fatal(err)
+	}
+	dir, err := os.MkdirTemp("tmp", "TestInitFeatureFlags*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
 	flagsFile := filepath.Join(dir, "flags.yaml")
 	if err := os.WriteFile(flagsFile, []byte("test-flag:\n  variations:\n    true_var: true\n    false_var: false\n  defaultRule:\n    variation: true_var\n"), 0644); err != nil {
 		t.Fatalf("Failed to create temp flags file: %v", err)

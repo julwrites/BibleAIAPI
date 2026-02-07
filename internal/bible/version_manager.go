@@ -99,3 +99,37 @@ func (vm *VersionManager) SelectProvider(unifiedCode string, preferredProviders 
 
 	return "", "", fmt.Errorf("no suitable provider found for version: %s", unifiedCode)
 }
+
+// GetPrioritizedProviders returns a list of providers that support the given version,
+// prioritized by the preferredProviders list (or default order).
+func (vm *VersionManager) GetPrioritizedProviders(unifiedCode string, preferredProviders []string) ([]ProviderConfig, error) {
+	vm.mu.RLock()
+	defer vm.mu.RUnlock()
+
+	if len(preferredProviders) == 0 {
+		preferredProviders = []string{"biblegateway", "biblehub", "biblenow", "biblecom"}
+	}
+
+	v, ok := vm.byCode[strings.ToUpper(unifiedCode)]
+	if !ok {
+		return nil, fmt.Errorf("version not found: %s", unifiedCode)
+	}
+
+	var configs []ProviderConfig
+	for _, provider := range preferredProviders {
+		if code, ok := v.Providers[provider]; ok && code != "" {
+			configs = append(configs, ProviderConfig{
+				Name:        provider,
+				VersionCode: code,
+			})
+		}
+	}
+
+	if len(configs) == 0 {
+		// Fallback: if no providers explicitly listed, maybe try to match any available?
+		// But for now, if it's in the map it should be found.
+		return nil, fmt.Errorf("no providers available for version: %s", unifiedCode)
+	}
+
+	return configs, nil
+}

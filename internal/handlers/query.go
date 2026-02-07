@@ -20,11 +20,12 @@ import (
 )
 
 // QueryHandler is the main handler for the /query endpoint.
+// QueryHandler is the main handler for the /query endpoint.
 type QueryHandler struct {
 	ProviderManager *bible.ProviderManager
 	GetLLMClient    GetLLMClient
 	FFClient        FFClient
-	ChatService     ChatService
+	ChatService     chat.Service
 	VersionManager  *bible.VersionManager
 }
 
@@ -55,6 +56,7 @@ func NewQueryHandler(secretsClient secrets.Client, versionManager *bible.Version
 		ChatService:     chat.NewChatService(bibleManager, getLLMClient),
 		VersionManager:  versionManager,
 	}
+
 }
 
 // ServeHTTP handles the HTTP request.
@@ -105,27 +107,31 @@ func (h *QueryHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Dynamic Provider Selection
-	providerName, providerVersion, err := h.VersionManager.SelectProvider(request.Context.User.Version, nil)
+	providerConfigs, err := h.VersionManager.GetPrioritizedProviders(request.Context.User.Version, nil)
 	if err != nil {
-		log.Printf("Provider selection failed for %s: %v. Falling back to %s.", request.Context.User.Version, err, bible.DefaultProviderName)
-		// Fallback
-		providerName = bible.DefaultProviderName
-		providerVersion = request.Context.User.Version
+		log.Printf("Provider selection failed for %s: %v. Falling back to default.", request.Context.User.Version, err)
+		// Fallback to default
+		providerConfigs = []bible.ProviderConfig{
+			{Name: bible.DefaultProviderName, VersionCode: request.Context.User.Version},
+		}
 	}
 
 	// Update the version in request context to the provider-specific code
-	request.Context.User.Version = providerVersion
+	// Update the version in request context to the primary provider code (for consistency)
+	if len(providerConfigs) > 0 {
+		request.Context.User.Version = providerConfigs[0].VersionCode
+	}
 
 	if hasPrompt {
-		h.handlePromptQuery(w, r, request, providerName)
+		h.handlePromptQuery(w, r, request, providerConfigs)
 	} else if hasVerses {
-		h.handleVerseQuery(w, r, request, providerName)
+		h.handleVerseQuery(w, r, request, providerConfigs)
 	} else if hasWords {
-		h.handleWordSearchQuery(w, r, request, providerName)
+		h.handleWordSearchQuery(w, r, request, providerConfigs)
 	}
 }
 
-func (h *QueryHandler) handlePromptQuery(w http.ResponseWriter, r *http.Request, request QueryRequest, providerName string) {
+func (h *QueryHandler) handlePromptQuery(w http.ResponseWriter, r *http.Request, request QueryRequest, providerConfigs []bible.ProviderConfig) {
 	// Validation: Stream and Schema are mutually exclusive
 	if request.Options.Stream && request.Context.Schema != "" {
 		util.JSONError(w, http.StatusBadRequest, "Stream and Schema are mutually exclusive")
@@ -168,15 +174,14 @@ func (h *QueryHandler) handlePromptQuery(w http.ResponseWriter, r *http.Request,
 	}
 
 	chatReq := chat.Request{
-		VerseRefs:  request.Context.Verses,
-		Words:      request.Context.Words,
-		Version:    request.Context.User.Version, // This is now providerVersion
-		Provider:   providerName,
-		Prompt:     request.Query.Prompt,
-		Schema:     schema,
-		AIProvider: request.Context.User.AIProvider,
-		Stream:     request.Options.Stream,
-		History:    request.Context.History,
+		VerseRefs:            request.Context.Verses,
+		Words:                request.Context.Words,
+		PrioritizedProviders: providerConfigs,
+		Prompt:               request.Query.Prompt,
+		Schema:               schema,
+		AIProvider:           request.Context.User.AIProvider,
+		Stream:               request.Options.Stream,
+		History:              request.Context.History,
 	}
 
 	result, err := h.ChatService.Process(r.Context(), chatReq)
@@ -225,53 +230,93 @@ func (h *QueryHandler) handlePromptQuery(w http.ResponseWriter, r *http.Request,
 	}
 }
 
-func (h *QueryHandler) handleVerseQuery(w http.ResponseWriter, r *http.Request, request QueryRequest, providerName string) {
-	p, err := h.ProviderManager.GetProvider(providerName)
-	if err != nil {
-		log.Printf("Failed to get provider %s: %v", providerName, err)
-		util.JSONError(w, http.StatusInternalServerError, "Provider configuration error")
+func (h *QueryHandler) handleVerseQuery(w http.ResponseWriter, r *http.Request, request QueryRequest, providerConfigs []bible.ProviderConfig) {
+	var verseText []string
+	var lastErr error
+	success := false
+
+	for _, config := range providerConfigs {
+		p, err := h.ProviderManager.GetProvider(config.Name)
+		if err != nil {
+			log.Printf("Failed to get provider %s: %v", config.Name, err)
+			continue
+		}
+
+		currentVerseText := []string{}
+		permErr := false
+		for _, verseRef := range request.Query.Verses {
+			book, chapter, verseNum, err := util.ParseVerseReference(verseRef)
+			if err != nil {
+				util.JSONError(w, http.StatusBadRequest, err.Error())
+				return
+			}
+
+			verse, err := p.GetVerse(book, chapter, verseNum, config.VersionCode)
+			if err != nil {
+				log.Printf("Provider %s GetVerse failed for %s %s:%s: %v", config.Name, book, chapter, verseNum, err)
+				lastErr = err
+				permErr = true
+				break
+			}
+			currentVerseText = append(currentVerseText, verse)
+		}
+
+		if !permErr {
+			verseText = currentVerseText
+			success = true
+			break
+		}
+	}
+
+	if !success {
+		log.Printf("All providers failed to get verses: %v", lastErr)
+		util.JSONError(w, http.StatusInternalServerError, "Failed to get verse from any provider")
 		return
 	}
 
-	var verseText []string
-	for _, verseRef := range request.Query.Verses {
-		book, chapter, verseNum, err := util.ParseVerseReference(verseRef)
-		if err != nil {
-			util.JSONError(w, http.StatusBadRequest, err.Error())
-			return
-		}
-
-		verse, err := p.GetVerse(book, chapter, verseNum, request.Context.User.Version)
-		if err != nil {
-			log.Printf("Provider %s GetVerse failed for %s %s:%s: %v", providerName, book, chapter, verseNum, err)
-			util.JSONError(w, http.StatusInternalServerError, "Failed to get verse")
-			return
-		}
-		verseText = append(verseText, verse)
-	}
 	json.NewEncoder(w).Encode(map[string]string{"verse": strings.Join(verseText, "\n")})
 }
 
-func (h *QueryHandler) handleWordSearchQuery(w http.ResponseWriter, r *http.Request, request QueryRequest, providerName string) {
-	log.Printf("Handling word search query for words: %v using provider: %s", request.Query.Words, providerName)
+func (h *QueryHandler) handleWordSearchQuery(w http.ResponseWriter, r *http.Request, request QueryRequest, providerConfigs []bible.ProviderConfig) {
+	log.Printf("Handling word search query for words: %v using providers: %v", request.Query.Words, providerConfigs)
 
-	p, err := h.ProviderManager.GetProvider(providerName)
-	if err != nil {
-		log.Printf("Failed to get provider %s: %v", providerName, err)
-		util.JSONError(w, http.StatusInternalServerError, "Provider configuration error")
+	var allResults []bible.SearchResult
+	var lastErr error
+	success := false
+
+	for _, config := range providerConfigs {
+		p, err := h.ProviderManager.GetProvider(config.Name)
+		if err != nil {
+			log.Printf("Failed to get provider %s: %v", config.Name, err)
+			continue
+		}
+
+		currentResults := make([]bible.SearchResult, 0)
+		permErr := false
+		for _, word := range request.Query.Words {
+			results, err := p.SearchWords(word, config.VersionCode)
+			if err != nil {
+				log.Printf("Error searching words '%s' with provider %s: %v", word, config.Name, err)
+				lastErr = err
+				permErr = true
+				break
+			}
+			log.Printf("Found %d results for word '%s'", len(results), word)
+			currentResults = append(currentResults, results...)
+		}
+
+		if !permErr {
+			allResults = currentResults
+			success = true
+			break
+		}
+	}
+
+	if !success {
+		log.Printf("All providers failed to search words: %v", lastErr)
+		util.JSONError(w, http.StatusInternalServerError, "Failed to search words from any provider")
 		return
 	}
 
-	allResults := make([]bible.SearchResult, 0)
-	for _, word := range request.Query.Words {
-		results, err := p.SearchWords(word, request.Context.User.Version)
-		if err != nil {
-			log.Printf("Error searching words '%s' with provider %s: %v", word, providerName, err)
-			util.JSONError(w, http.StatusInternalServerError, "Failed to search words")
-			return
-		}
-		log.Printf("Found %d results for word '%s'", len(results), word)
-		allResults = append(allResults, results...)
-	}
 	json.NewEncoder(w).Encode(allResults)
 }

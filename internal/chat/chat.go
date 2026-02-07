@@ -21,6 +21,11 @@ type BibleProviderRegistry interface {
 // GetLLMClient defines the function signature for getting an LLM client.
 type GetLLMClient func() (provider.LLMClient, error)
 
+// Service defines the interface for the chat service.
+type Service interface {
+	Process(ctx context.Context, req Request) (*Result, error)
+}
+
 // ChatService orchestrates fetching Bible verses, processing them, and interacting with an LLM.
 type ChatService struct {
 	BibleProviderRegistry BibleProviderRegistry
@@ -28,7 +33,7 @@ type ChatService struct {
 }
 
 // NewChatService creates a new ChatService.
-func NewChatService(registry BibleProviderRegistry, getLLMClient GetLLMClient) *ChatService {
+func NewChatService(registry BibleProviderRegistry, getLLMClient GetLLMClient) Service {
 	return &ChatService{
 		BibleProviderRegistry: registry,
 		GetLLMClient:          getLLMClient,
@@ -37,15 +42,16 @@ func NewChatService(registry BibleProviderRegistry, getLLMClient GetLLMClient) *
 
 // Request represents the input for the chat service.
 type Request struct {
-	VerseRefs  []string `json:"verse_refs"`
-	Words      []string `json:"words"`
-	Version    string   `json:"version"`
-	Provider   string   `json:"provider"`
-	Prompt     string   `json:"prompt"`
-	Schema     string   `json:"schema"`
-	AIProvider string   `json:"ai_provider"`
-	Stream     bool     `json:"stream"`
-	History    []string `json:"history"`
+	VerseRefs            []string               `json:"verse_refs"`
+	Words                []string               `json:"words"`
+	Version              string                 `json:"version"`  // Deprecated: use PrioritizedProviders
+	Provider             string                 `json:"provider"` // Deprecated: use PrioritizedProviders
+	PrioritizedProviders []bible.ProviderConfig `json:"prioritized_providers"`
+	Prompt               string                 `json:"prompt"`
+	Schema               string                 `json:"schema"`
+	AIProvider           string                 `json:"ai_provider"`
+	Stream               bool                   `json:"stream"`
+	History              []string               `json:"history"`
 }
 
 // Response represents the structured output from the LLM.
@@ -61,38 +67,94 @@ type Result struct {
 
 // Process handles the chat request.
 func (s *ChatService) Process(ctx context.Context, req Request) (*Result, error) {
-	// Get the provider
-	bibleProvider, err := s.BibleProviderRegistry.GetProvider(req.Provider)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get provider '%s': %w", req.Provider, err)
+	// Backwards compatibility: if PrioritizedProviders is empty, use single provider/version
+	if len(req.PrioritizedProviders) == 0 && req.Provider != "" {
+		req.PrioritizedProviders = []bible.ProviderConfig{
+			{Name: req.Provider, VersionCode: req.Version},
+		}
+	}
+
+	if len(req.PrioritizedProviders) == 0 {
+		return nil, fmt.Errorf("no bible providers configured")
 	}
 
 	// 1. Retrieve verses
 	var verseTexts []string
-	for _, verseRef := range req.VerseRefs {
-		book, chapter, verseNum, err := util.ParseVerseReference(verseRef)
-		if err != nil {
-			return nil, fmt.Errorf("invalid verse reference format (%s): %w", verseRef, err)
-		}
+	if len(req.VerseRefs) > 0 {
+		var lastErr error
+		success := false
+		for _, providerConfig := range req.PrioritizedProviders {
+			bibleProvider, err := s.BibleProviderRegistry.GetProvider(providerConfig.Name)
+			if err != nil {
+				lastErr = fmt.Errorf("provider %s not found: %w", providerConfig.Name, err)
+				continue
+			}
 
-		verseHTML, err := bibleProvider.GetVerse(book, chapter, verseNum, req.Version)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get verse %s: %w", verseRef, err)
-		}
+			currentVerseTexts := []string{}
+			permErr := false
+			for _, verseRef := range req.VerseRefs {
+				book, chapter, verseNum, err := util.ParseVerseReference(verseRef)
+				if err != nil {
+					// Invalid reference is a permanent error, don't retry other providers
+					return nil, fmt.Errorf("invalid verse reference format (%s): %w", verseRef, err)
+				}
 
-		// 2. Keep the verse HTML content to preserve structure/poetry
-		verseTexts = append(verseTexts, fmt.Sprintf("%s: %s", verseRef, verseHTML))
+				verseHTML, err := bibleProvider.GetVerse(book, chapter, verseNum, providerConfig.VersionCode)
+				if err != nil {
+					// Provider failed for this verse
+					lastErr = err
+					permErr = true
+					break // Try next provider for ALL verses (atomic per request? or per verse?)
+					// Assumption: if a provider fails for one verse, it's likely flaky for others.
+					// We'll retry the whole batch with next provider.
+				}
+				currentVerseTexts = append(currentVerseTexts, fmt.Sprintf("%s: %s", verseRef, verseHTML))
+			}
+
+			if !permErr {
+				verseTexts = currentVerseTexts
+				success = true
+				break
+			}
+		}
+		if !success {
+			return nil, fmt.Errorf("failed to retrieve verses from any provider: %w", lastErr)
+		}
 	}
 
 	// 3. Search for words and add to context
 	var searchResults []string
-	for _, word := range req.Words {
-		results, err := bibleProvider.SearchWords(word, req.Version)
-		if err != nil {
-			return nil, fmt.Errorf("failed to search word %s: %w", word, err)
+	if len(req.Words) > 0 {
+		var lastErr error
+		success := false
+		for _, providerConfig := range req.PrioritizedProviders {
+			bibleProvider, err := s.BibleProviderRegistry.GetProvider(providerConfig.Name)
+			if err != nil {
+				continue
+			}
+
+			currentSearchResults := []string{}
+			permErr := false
+			for _, word := range req.Words {
+				results, err := bibleProvider.SearchWords(word, providerConfig.VersionCode)
+				if err != nil {
+					lastErr = err
+					permErr = true
+					break
+				}
+				for _, result := range results {
+					currentSearchResults = append(currentSearchResults, fmt.Sprintf("%s: %s", result.Verse, result.Text))
+				}
+			}
+
+			if !permErr {
+				searchResults = currentSearchResults
+				success = true
+				break
+			}
 		}
-		for _, result := range results {
-			searchResults = append(searchResults, fmt.Sprintf("%s: %s", result.Verse, result.Text))
+		if !success {
+			return nil, fmt.Errorf("failed to search words from any provider: %w", lastErr)
 		}
 	}
 

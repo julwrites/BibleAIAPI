@@ -16,7 +16,16 @@ import (
 
 func TestNewVersionsHandler(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		tmpDir := t.TempDir()
+		if err := os.MkdirAll("tmp", 0755); err != nil {
+			t.Fatal(err)
+		}
+		tmpDir, err := os.MkdirTemp("tmp", "TestNewVersionsHandler*")
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() {
+			os.RemoveAll(tmpDir)
+		})
 		configPath := filepath.Join(tmpDir, "versions.yaml")
 		content := `
 - name: English Standard Version
@@ -26,7 +35,7 @@ func TestNewVersionsHandler(t *testing.T) {
   code: KJV
   language: English
 `
-		err := os.WriteFile(configPath, []byte(content), 0644)
+		err = os.WriteFile(configPath, []byte(content), 0644)
 		require.NoError(t, err)
 
 		vm, err := bible.NewVersionManager(configPath)
@@ -60,9 +69,18 @@ func TestVersionsHandler_ListVersions(t *testing.T) {
   code: BDS
   language: French
 `
-	tmpDir := t.TempDir()
+	if err := os.MkdirAll("tmp", 0755); err != nil {
+		t.Fatal(err)
+	}
+	tmpDir, err := os.MkdirTemp("tmp", "TestVersionsHandler_ListVersions*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		os.RemoveAll(tmpDir)
+	})
 	configPath := filepath.Join(tmpDir, "versions.yaml")
-	err := os.WriteFile(configPath, []byte(content), 0644)
+	err = os.WriteFile(configPath, []byte(content), 0644)
 	require.NoError(t, err)
 
 	vm, err := bible.NewVersionManager(configPath)

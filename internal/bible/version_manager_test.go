@@ -8,7 +8,14 @@ import (
 
 func TestNewVersionManager(t *testing.T) {
 	// Setup Temp Config File
-	tempDir := t.TempDir()
+	if err := os.MkdirAll("tmp", 0755); err != nil {
+		t.Fatal(err)
+	}
+	tempDir, err := os.MkdirTemp("tmp", "TestNewVersionManager*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tempDir)
 	configPath := filepath.Join(tempDir, "versions.yaml")
 	content := []byte(`
 - code: KJV
@@ -43,7 +50,14 @@ func TestNewVersionManager(t *testing.T) {
 
 func TestVersionManager_GetProviderCode(t *testing.T) {
 	// Setup Temp Config File
-	tempDir := t.TempDir()
+	if err := os.MkdirAll("tmp", 0755); err != nil {
+		t.Fatal(err)
+	}
+	tempDir, err := os.MkdirTemp("tmp", "TestVersionManager_GetProviderCode*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tempDir)
 	configPath := filepath.Join(tempDir, "versions.yaml")
 	content := []byte(`
 - code: TEST
@@ -110,13 +124,20 @@ func TestNewVersionManager_FileNotFound(t *testing.T) {
 }
 
 func TestNewVersionManager_InvalidYAML(t *testing.T) {
-	tempDir := t.TempDir()
+	if err := os.MkdirAll("tmp", 0755); err != nil {
+		t.Fatal(err)
+	}
+	tempDir, err := os.MkdirTemp("tmp", "TestNewVersionManager_InvalidYAML*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tempDir)
 	configPath := filepath.Join(tempDir, "invalid.yaml")
 	if err := os.WriteFile(configPath, []byte("invalid: yaml: content: ["), 0644); err != nil {
 		t.Fatalf("failed to create config file: %v", err)
 	}
 
-	_, err := NewVersionManager(configPath)
+	_, err = NewVersionManager(configPath)
 	if err == nil {
 		t.Error("expected error for invalid yaml, got nil")
 	}
@@ -124,7 +145,14 @@ func TestNewVersionManager_InvalidYAML(t *testing.T) {
 
 func TestVersionManager_SelectProvider(t *testing.T) {
 	// Setup Temp Config File
-	tempDir := t.TempDir()
+	if err := os.MkdirAll("tmp", 0755); err != nil {
+		t.Fatal(err)
+	}
+	tempDir, err := os.MkdirTemp("tmp", "TestVersionManager_SelectProvider*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tempDir)
 	configPath := filepath.Join(tempDir, "versions.yaml")
 	content := []byte(`
 - code: KJV
