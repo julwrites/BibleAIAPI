@@ -1,0 +1,46 @@
+meta {
+  name: Cross-Chapter Verse Search
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{baseUrl}}/query
+  body: json
+  auth: inherit
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+      "query": {
+          "verses": ["John 1:12-2:4"]
+      },
+      "context": {
+          "user": {
+              "version": "ESV",
+              "provider": "biblegateway"
+          }
+      }
+  }
+}
+
+tests {
+  test("should return 200 OK", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("should return cross-chapter verse text", function() {
+    const data = res.getBody();
+    // 1:12 text
+    expect(data.verse).to.contain("But to all who did receive him");
+    // 2:1 text
+    expect(data.verse).to.contain("On the third day there was a wedding at Cana");
+    // 2:4 text
+    expect(data.verse).to.contain("And Jesus said to her, “Woman");
+  });
+}
