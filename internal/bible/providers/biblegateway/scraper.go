@@ -278,7 +278,6 @@ func (s *Scraper) getVersesFromChapter(book, chapter string, startVerse, endVers
 
     // Extract verses within range
     var textBuilder strings.Builder
-
     // Handle verse 1 if in range (verse 1 uses span.chapternum instead of sup.versenum)
     if startVerse == 1 && 1 <= endVerse {
         passageSelection.Find("span.chapternum").Each(func(i int, chapSel *goquery.Selection) {
@@ -300,7 +299,6 @@ func (s *Scraper) getVersesFromChapter(book, chapter string, startVerse, endVers
             return
         })
     }
-
     passageSelection.Find("sup.versenum").Each(func(i int, supSel *goquery.Selection) {
         verseNumText := strings.TrimSpace(supSel.Text())
         verseNumText = strings.TrimRight(verseNumText, "\u00a0")
