@@ -88,6 +88,12 @@ func unwrapSmallCaps(s *goquery.Selection) {
 	})
 }
 
+func unwrapWoj(s *goquery.Selection) {
+	s.Find(".woj").Each(func(i int, sel *goquery.Selection) {
+		sel.ReplaceWithHtml(sel.Text())
+	})
+}
+
 func removeAllAttributes(s *goquery.Selection) {
 	s.Find("*").Each(func(_ int, sel *goquery.Selection) {
 		sel.Get(0).Attr = []html.Attribute{}
@@ -272,6 +278,29 @@ func (s *Scraper) getVersesFromChapter(book, chapter string, startVerse, endVers
 
     // Extract verses within range
     var textBuilder strings.Builder
+
+    // Handle verse 1 if in range (verse 1 uses span.chapternum instead of sup.versenum)
+    if startVerse == 1 && 1 <= endVerse {
+        passageSelection.Find("span.chapternum").Each(func(i int, chapSel *goquery.Selection) {
+            // Verse 1 container is parent span
+            verseContainer := chapSel.Parent()
+            if verseContainer.Is("span") {
+                // Remove cross-references and footnotes before extracting text
+                verseContainer.Find("sup.crossreference, sup.footnote").Remove()
+                // Remove the chapter number span itself
+                chapSel.Remove()
+                // Get text
+                verseText := strings.TrimSpace(verseContainer.Text())
+                if textBuilder.Len() > 0 {
+                    textBuilder.WriteString(" ")
+                }
+                textBuilder.WriteString(verseText)
+            }
+            // Only process first chapternum (should be only one)
+            return
+        })
+    }
+
     passageSelection.Find("sup.versenum").Each(func(i int, supSel *goquery.Selection) {
         verseNumText := strings.TrimSpace(supSel.Text())
         verseNumText = strings.TrimRight(verseNumText, "\u00a0")
@@ -289,6 +318,10 @@ func (s *Scraper) getVersesFromChapter(book, chapter string, startVerse, endVers
                     verseContainer = verseContainer.Parent()
                 }
             }
+            // Remove cross-references and footnotes before extracting text
+            verseContainer.Find("sup.crossreference, sup.footnote").Remove()
+            // Remove the verse number superscript
+            supSel.Remove()
             // Get text excluding the superscript verse number
             verseText := strings.TrimSpace(verseContainer.Text())
             if textBuilder.Len() > 0 {
@@ -310,6 +343,7 @@ func sanitizeSelection(s *goquery.Selection) (string, error) {
 
 	removeUnwantedElements(s)
 	unwrapSmallCaps(s)
+	unwrapWoj(s)
 
 	if isPoetry {
 		s.Find("p.top-1").ReplaceWithHtml("<br/>")
