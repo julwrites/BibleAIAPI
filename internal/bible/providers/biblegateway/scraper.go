@@ -5,9 +5,11 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"bible-api-service/internal/bible"
+	"bible-api-service/internal/util"
 
 	"github.com/PuerkitoBio/goquery"
 	"golang.org/x/net/html"
@@ -147,6 +149,61 @@ func NewScraper() *Scraper {
 
 // GetVerse fetches a single Bible verse by reference and returns it as sanitized HTML.
 func (s *Scraper) GetVerse(book, chapter, verse, version string) (string, error) {
+	// Parse verse range
+	startVerse := 1
+	endVerse := 999
+	endChapter := 0
+
+	startChapterVal, err := strconv.Atoi(chapter)
+	if err != nil {
+		return "", fmt.Errorf("invalid chapter format: %v", err)
+	}
+
+	if verse != "" {
+		parsed, err := util.ParseVerseRange(verse)
+		if err != nil {
+			return "", fmt.Errorf("invalid verse range: %v", err)
+		}
+		startVerse = parsed.StartVerse
+		endVerse = parsed.EndVerse
+		if parsed.IsCrossChapter {
+			endChapter = parsed.EndChapter
+		} else {
+			endChapter = startChapterVal
+		}
+	} else {
+		endChapter = startChapterVal
+	}
+
+	// If cross-chapter range, iterate through chapters
+	if startChapterVal != endChapter {
+		var allTextBuilder strings.Builder
+		for currentChap := startChapterVal; currentChap <= endChapter; currentChap++ {
+			currentStartV := 1
+			currentEndV := 999
+
+			if currentChap == startChapterVal {
+				currentStartV = startVerse
+			}
+			if currentChap == endChapter {
+				currentEndV = endVerse
+			}
+
+			chapterText, err := s.getVersesFromChapter(book, strconv.Itoa(currentChap), currentStartV, currentEndV, version)
+			if err != nil {
+				return "", fmt.Errorf("failed to fetch chapter %d: %v", currentChap, err)
+			}
+
+			if allTextBuilder.Len() > 0 && chapterText != "" {
+				allTextBuilder.WriteString("\n")
+			}
+			allTextBuilder.WriteString(chapterText)
+		}
+		return strings.TrimSpace(allTextBuilder.String()), nil
+	}
+
+	// Single chapter range (including whole chapter)
+	// Use existing logic for efficiency and to preserve existing behavior
 	reference := fmt.Sprintf("%s %s:%s", book, chapter, verse)
 	if verse == "" {
 		reference = fmt.Sprintf("%s %s", book, chapter)
@@ -180,6 +237,72 @@ func (s *Scraper) GetVerse(book, chapter, verse, version string) (string, error)
 	}
 
 	return sanitizeSelection(passageSelection)
+}
+
+func (s *Scraper) getVersesFromChapter(book, chapter string, startVerse, endVerse int, version string) (string, error) {
+    // Fetch whole chapter
+    reference := fmt.Sprintf("%s %s", book, chapter)
+    encodedReference := url.QueryEscape(reference)
+    url := s.baseURL + fmt.Sprintf("/passage/?search=%s&version=%s&interface=print", encodedReference, version)
+
+    req, err := http.NewRequest("GET", url, nil)
+    if err != nil {
+        return "", err
+    }
+
+    res, err := s.client.Do(req)
+    if err != nil {
+        return "", err
+    }
+    defer res.Body.Close()
+
+    if res.StatusCode != 200 {
+        return "", fmt.Errorf("failed to fetch chapter, status code: %d", res.StatusCode)
+    }
+
+    doc, err := goquery.NewDocumentFromReader(res.Body)
+    if err != nil {
+        return "", err
+    }
+
+    passageSelection := doc.Find(".passage-text")
+    if passageSelection.Length() == 0 || strings.Contains(passageSelection.Text(), "No results found") {
+        return "", fmt.Errorf("chapter not found")
+    }
+
+    // Extract verses within range
+    var textBuilder strings.Builder
+    passageSelection.Find("sup.versenum").Each(func(i int, supSel *goquery.Selection) {
+        verseNumText := strings.TrimSpace(supSel.Text())
+        verseNumText = strings.TrimRight(verseNumText, "\u00a0")
+        verseNumText = strings.TrimSpace(verseNumText)
+        verseNum, err := strconv.Atoi(verseNumText)
+        if err != nil {
+            return
+        }
+        if verseNum >= startVerse && verseNum <= endVerse {
+            // Find the verse container: parent span or p.verse/p.line
+            verseContainer := supSel.Parent()
+            // If parent is span, maybe its parent is p.verse or p.line
+            if verseContainer.Is("span") {
+                if verseContainer.Parent().Is("p.verse") || verseContainer.Parent().Is("p.line") {
+                    verseContainer = verseContainer.Parent()
+                }
+            }
+            // Get text excluding the superscript verse number
+            verseText := strings.TrimSpace(verseContainer.Text())
+            if textBuilder.Len() > 0 {
+                textBuilder.WriteString(" ")
+            }
+            textBuilder.WriteString(verseText)
+        }
+    })
+
+    result := strings.TrimSpace(textBuilder.String())
+    if result == "" {
+        return "", fmt.Errorf("no verses found in range %d-%d", startVerse, endVerse)
+    }
+    return result, nil
 }
 
 func sanitizeSelection(s *goquery.Selection) (string, error) {
