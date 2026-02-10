@@ -29,6 +29,11 @@ body:json {
   }
 }
 
+vars:pre-request {
+  apiKey: 579b50a8d1fb4a44533c579921caecd21db54580e4e529363156fa9bc056f726
+  baseUrl: https://bible-api-service-staging-779024060388.asia-southeast1.run.app
+}
+
 tests {
   test("should return 200 OK", function() {
     expect(res.getStatus()).to.equal(200);
