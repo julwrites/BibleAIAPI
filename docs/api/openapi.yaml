@@ -233,6 +233,20 @@ components:
               type: string
               example: "openai"
 
+    PromptResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          description: "The structured response data (schema depends on the request schema, defaults to OQueryResponse)."
+        meta:
+          type: object
+          description: "Metadata about the response."
+          properties:
+            ai_provider:
+              type: string
+              example: "openai"
+
     VerseResponse:
       type: object
       properties:

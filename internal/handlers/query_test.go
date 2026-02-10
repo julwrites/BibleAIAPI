@@ -46,17 +46,7 @@ func (m *MockProvider) GetVersions() ([]bible.ProviderVersion, error) {
 }
 
 func createTestVersionManager(t *testing.T) *bible.VersionManager {
-	if err := os.MkdirAll("tmp", 0755); err != nil {
-		t.Fatal(err)
-	}
-	tmpDir, err := os.MkdirTemp("tmp", "createTestVersionManager*")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		os.RemoveAll(tmpDir)
-	})
-
+	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "versions.yaml")
 	content := `
 - code: ESV
@@ -65,7 +55,7 @@ func createTestVersionManager(t *testing.T) *bible.VersionManager {
   providers:
     biblegateway: ESV
 `
-	err = os.WriteFile(configPath, []byte(content), 0644)
+	err := os.WriteFile(configPath, []byte(content), 0644)
 	require.NoError(t, err)
 
 	vm, err := bible.NewVersionManager(configPath)
@@ -185,7 +175,7 @@ func TestHandlePromptQuery(t *testing.T) {
 	handler := &QueryHandler{
 		ChatService: &mockChatService{
 			processFunc: func(ctx context.Context, req chat.Request) (*chat.Result, error) {
-				if len(req.PrioritizedProviders) == 0 || req.PrioritizedProviders[0].Name != bible.DefaultProviderName {
+				if req.Provider != bible.DefaultProviderName {
 					return nil, &http.MaxBytesError{} // Indicate failure
 				}
 				return &chat.Result{

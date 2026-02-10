@@ -28,7 +28,6 @@ func NewScraper() *Scraper {
 }
 
 // GetVerse fetches a verse or range of verses from Bible.com.
-// GetVerse fetches a verse or range of verses from Bible.com.
 func (s *Scraper) GetVerse(book, chapter, verse, version string) (string, error) {
 	if version == "" {
 		version = "111" // Default to NIV ID

@@ -8,7 +8,6 @@ import (
 
 	"bible-api-service/internal/bible"
 	"bible-api-service/internal/llm/provider"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -447,6 +446,8 @@ func TestChatService_Process_WithHistory(t *testing.T) {
 		Provider: "biblegateway",
 		Schema:   `{"type": "object", "properties": {"response": {"type": "string"}}}`,
 	}
+
+	mockRegistry.On("GetProvider", "biblegateway").Return(mockProvider, nil)
 
 	// History should be limited to last 6 entries
 	expectedHistoryPart := "Previous Conversation Context:\n- AI: Hi there!\n- User: Who is John?\n- AI: John is an apostle.\n- User: Tell me more.\n- AI: He wrote a gospel.\n- User: Which one?\n"
