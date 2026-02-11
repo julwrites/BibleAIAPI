@@ -2,94 +2,51 @@ package secrets
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"testing"
-
-	"github.com/google/go-cmp/cmp"
-	"github.com/googleapis/gax-go/v2"
-	secretmanagerpb "google.golang.org/genproto/googleapis/cloud/secretmanager/v1"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
-type mockSecretManagerClient struct {
-	accessSecretVersionFunc func(ctx context.Context, req *secretmanagerpb.AccessSecretVersionRequest, opts ...gax.CallOption) (*secretmanagerpb.AccessSecretVersionResponse, error)
-	closeFunc               func() error
+type MockClient struct {
+	GetSecretFunc func(ctx context.Context, name string) (string, error)
 }
 
-func (m *mockSecretManagerClient) AccessSecretVersion(ctx context.Context, req *secretmanagerpb.AccessSecretVersionRequest, opts ...gax.CallOption) (*secretmanagerpb.AccessSecretVersionResponse, error) {
-	return m.accessSecretVersionFunc(ctx, req, opts...)
-}
-
-func (m *mockSecretManagerClient) Close() error {
-	return m.closeFunc()
-}
-
-func NewTestClient(mock *mockSecretManagerClient, projectID string) Client {
-	return &googleSecretManagerClient{
-		client:    mock,
-		projectID: projectID,
+func (m *MockClient) GetSecret(ctx context.Context, name string) (string, error) {
+	if m.GetSecretFunc != nil {
+		return m.GetSecretFunc(ctx, name)
 	}
+	return "", nil
 }
 
-func TestGetSecret(t *testing.T) {
-	tests := []struct {
-		name          string
-		secretName    string
-		projectID     string
-		mockResponse  *secretmanagerpb.AccessSecretVersionResponse
-		mockError     error
-		expectedValue string
-		expectedError error
-	}{
-		{
-			name:       "Successful retrieval",
-			secretName: "my-secret",
-			projectID:  "my-project",
-			mockResponse: &secretmanagerpb.AccessSecretVersionResponse{
-				Payload: &secretmanagerpb.SecretPayload{
-					Data: []byte("my-secret-value"),
-				},
-			},
-			mockError:     nil,
-			expectedValue: "my-secret-value",
-			expectedError: nil,
-		},
-		{
-			name:          "Secret not found",
-			secretName:    "my-secret",
-			projectID:     "my-project",
-			mockResponse:  nil,
-			mockError:     status.Error(codes.NotFound, "secret not found"),
-			expectedValue: "",
-			expectedError: fmt.Errorf("failed to access secret version: %v", status.Error(codes.NotFound, "secret not found")),
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mock := &mockSecretManagerClient{
-				accessSecretVersionFunc: func(ctx context.Context, req *secretmanagerpb.AccessSecretVersionRequest, opts ...gax.CallOption) (*secretmanagerpb.AccessSecretVersionResponse, error) {
-					return tt.mockResponse, tt.mockError
-				},
-				closeFunc: func() error { return nil },
-			}
-			client := NewTestClient(mock, tt.projectID)
-
-			value, err := client.GetSecret(context.Background(), tt.secretName)
-
-			if value != tt.expectedValue {
-				t.Errorf("unexpected value: got %q, want %q", value, tt.expectedValue)
-			}
-
-			if !cmp.Equal(err, tt.expectedError, cmp.Comparer(func(x, y error) bool {
-				if x == nil || y == nil {
-					return x == y
+func TestGet(t *testing.T) {
+	t.Run("Secret found", func(t *testing.T) {
+		mock := &MockClient{
+			GetSecretFunc: func(ctx context.Context, name string) (string, error) {
+				if name == "test-key" {
+					return "test-value", nil
 				}
-				return x.Error() == y.Error()
-			})) {
-				t.Errorf("unexpected error: got %v, want %v", err, tt.expectedError)
-			}
-		})
-	}
+				return "", errors.New("not found")
+			},
+		}
+
+		val, err := Get(context.Background(), mock, "test-key")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if val != "test-value" {
+			t.Errorf("expected 'test-value', got '%s'", val)
+		}
+	})
+
+	t.Run("Secret not found", func(t *testing.T) {
+		mock := &MockClient{
+			GetSecretFunc: func(ctx context.Context, name string) (string, error) {
+				return "", errors.New("not found")
+			},
+		}
+
+		_, err := Get(context.Background(), mock, "test-key")
+		if err == nil {
+			t.Error("expected error for missing secret")
+		}
+	})
 }

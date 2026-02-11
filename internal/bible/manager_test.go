@@ -1,11 +1,9 @@
 package bible
 
 import (
-	"errors"
 	"testing"
 )
 
-// MockProvider is a mock implementation of the Provider interface.
 type MockProvider struct {
 	GetVerseFunc    func(book, chapter, verse, version string) (string, error)
 	SearchWordsFunc func(query, version string) ([]SearchResult, error)
@@ -33,75 +31,95 @@ func (m *MockProvider) GetVersions() ([]ProviderVersion, error) {
 	return nil, nil
 }
 
-func TestProviderManager_GetVerse(t *testing.T) {
-	mockProvider := &MockProvider{
-		GetVerseFunc: func(book, chapter, verse, version string) (string, error) {
-			if book == "John" && chapter == "3" && verse == "16" {
-				return "For God so loved the world", nil
-			}
-			return "", errors.New("not found")
-		},
-	}
+func TestProviderManager(t *testing.T) {
+	t.Run("GetVerse success", func(t *testing.T) {
+		mock := &MockProvider{
+			GetVerseFunc: func(book, chapter, verse, version string) (string, error) {
+				return "Jesus wept", nil
+			},
+		}
+		pm := NewProviderManager(mock)
+		verse, err := pm.GetVerse("John", "11", "35", "ESV")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if verse != "Jesus wept" {
+			t.Errorf("expected 'Jesus wept', got '%s'", verse)
+		}
+	})
 
-	manager := NewProviderManager(mockProvider)
+	t.Run("GetVerse no primary", func(t *testing.T) {
+		pm := NewProviderManager(nil)
+		_, err := pm.GetVerse("John", "11", "35", "ESV")
+		if err == nil {
+			t.Error("expected error when no primary provider is set")
+		}
+	})
 
-	// Test success
-	verse, err := manager.GetVerse("John", "3", "16", "ESV")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if verse != "For God so loved the world" {
-		t.Errorf("expected verse to be 'For God so loved the world', got '%s'", verse)
-	}
+	t.Run("SearchWords success", func(t *testing.T) {
+		mock := &MockProvider{
+			SearchWordsFunc: func(query, version string) ([]SearchResult, error) {
+				return []SearchResult{{Text: "Jesus wept"}}, nil
+			},
+		}
+		pm := NewProviderManager(mock)
+		results, err := pm.SearchWords("wept", "ESV")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(results) != 1 || results[0].Text != "Jesus wept" {
+			t.Errorf("unexpected results: %v", results)
+		}
+	})
 
-	// Test error
-	_, err = manager.GetVerse("Genesis", "1", "1", "ESV")
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
-}
+	t.Run("SearchWords no primary", func(t *testing.T) {
+		pm := NewProviderManager(nil)
+		_, err := pm.SearchWords("wept", "ESV")
+		if err == nil {
+			t.Error("expected error when no primary provider is set")
+		}
+	})
 
-func TestProviderManager_SearchWords(t *testing.T) {
-	mockProvider := &MockProvider{
-		SearchWordsFunc: func(query, version string) ([]SearchResult, error) {
-			if query == "love" {
-				return []SearchResult{{Verse: "John 3:16", Text: "For God so loved..."}}, nil
-			}
-			return nil, errors.New("search failed")
-		},
-	}
+	t.Run("GetProvider success", func(t *testing.T) {
+		mock := &MockProvider{}
+		pm := NewProviderManager(mock)
+		pm.RegisterProvider("test", mock)
 
-	manager := NewProviderManager(mockProvider)
+		p, err := pm.GetProvider("test")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if p != mock {
+			t.Error("expected mock provider")
+		}
+	})
 
-	// Test success
-	results, err := manager.SearchWords("love", "ESV")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(results) != 1 {
-		t.Errorf("expected 1 result, got %d", len(results))
-	}
-	if results[0].Verse != "John 3:16" {
-		t.Errorf("expected verse 'John 3:16', got '%s'", results[0].Verse)
-	}
+	t.Run("GetProvider not found", func(t *testing.T) {
+		pm := NewProviderManager(nil)
+		_, err := pm.GetProvider("unknown")
+		if err == nil {
+			t.Error("expected error for unknown provider")
+		}
+	})
 
-	// Test error
-	_, err = manager.SearchWords("hate", "ESV")
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
-}
+	t.Run("RegisterProvider lazy init", func(t *testing.T) {
+		// Create manager with nil map (simulated by manual struct construction if needed,
+        // but NewProviderManager initializes it. To test lazy init, we'd need to bypass constructor or
+        // set it to nil manually).
+        // Since `providers` field is unexported, we can't set it to nil easily from outside package
+        // unless we are in same package. This test file IS in package bible.
+		pm := &ProviderManager{primary: nil} // providers map is nil
+		mock := &MockProvider{}
 
-func TestProviderManager_NoProvider(t *testing.T) {
-	manager := NewProviderManager(nil)
+		// Should not panic and should initialize map
+		pm.RegisterProvider("test", mock)
 
-	_, err := manager.GetVerse("John", "3", "16", "ESV")
-	if err == nil {
-		t.Error("expected error when no provider is set")
-	}
-
-	_, err = manager.SearchWords("love", "ESV")
-	if err == nil {
-		t.Error("expected error when no provider is set")
-	}
+		p, err := pm.GetProvider("test")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if p != mock {
+			t.Error("expected mock provider")
+		}
+	})
 }

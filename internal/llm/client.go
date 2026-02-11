@@ -156,6 +156,16 @@ func NewFallbackClient(ctx context.Context, secretsClient secrets.Client) (*Fall
 	return &FallbackClient{clients: clients, clientsMap: clientsMap}, nil
 }
 
+// NewFallbackClientWithProviders creates a new FallbackClient with the given providers.
+// This is primarily used for testing.
+func NewFallbackClientWithProviders(clients []provider.LLMClient) *FallbackClient {
+	clientsMap := make(map[string]provider.LLMClient)
+	for _, client := range clients {
+		clientsMap[client.Name()] = client
+	}
+	return &FallbackClient{clients: clients, clientsMap: clientsMap}
+}
+
 // Query tries each client in order until one succeeds.
 func (c *FallbackClient) Query(ctx context.Context, prompt string, schema string) (string, string, error) {
 	var lastErr error
