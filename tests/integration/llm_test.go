@@ -44,7 +44,7 @@ func TestLLMProvidersIntegration(t *testing.T) {
 		t.Fatalf("Failed to create LLM client: %v", err)
 	}
 
-	response, err := client.Query(ctx, "Hello, can you hear me? Reply with 'Yes'.", "")
+	response, _, err := client.Query(ctx, "Hello, can you hear me? Reply with 'Yes'.", "")
 	if err != nil {
 		t.Fatalf("LLM Query failed: %v", err)
 	}
