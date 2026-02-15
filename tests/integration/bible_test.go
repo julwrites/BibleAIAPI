@@ -3,7 +3,7 @@
 package integration
 
 import (
-	"bible-api-service/internal/biblegateway"
+	"bible-api-service/internal/bible/providers/biblegateway"
 	"strings"
 	"testing"
 )
