@@ -11,7 +11,7 @@ import (
 )
 
 func TestMain(t *testing.T) {
-	os.Setenv("PORT", "8081")
+	os.Setenv("PORT", "8091")
 	defer os.Unsetenv("PORT")
 	// Set API_KEYS secret via env var for local fallback
 	os.Setenv("API_KEYS", `{"test-client": "test-api-key"}`)
@@ -34,7 +34,7 @@ func TestMain(t *testing.T) {
 		}
 	}`
 
-	res, err := http.Post("http://localhost:8081/query", "application/json", bytes.NewBufferString(reqBody))
+	res, err := http.Post("http://localhost:8091/query", "application/json", bytes.NewBufferString(reqBody))
 	if err != nil {
 		t.Fatalf("could not send POST request: %v", err)
 	}

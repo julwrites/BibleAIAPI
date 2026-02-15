@@ -7,3 +7,10 @@ type Version struct {
 	Language  string            `json:"language" yaml:"language"`
 	Providers map[string]string `json:"providers" yaml:"providers"`
 }
+
+
+// ProviderConfig represents a specific provider's configuration for a version.
+type ProviderConfig struct {
+	Name        string
+	VersionCode string
+}

@@ -1,9 +1,8 @@
 {
   "version": "1",
-  "name": "Bible AI API",
+  "name": "BibleAI API Regression Tests",
   "type": "collection",
   "ignore": [
-    "node_modules",
     ".git"
   ]
 }

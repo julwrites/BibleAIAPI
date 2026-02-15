@@ -1,0 +1,21 @@
+meta {
+  name: Version List
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/bible-versions?page=1&limit=20&language=Eng
+  body: none
+  auth: inherit
+}
+
+headers {
+  X-API-Key: {{apiKey}}
+  Content-Type: application/json
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

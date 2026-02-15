@@ -5,13 +5,13 @@ meta {
 }
 
 post {
-  url: http://localhost:8085/query
+  url: {{baseUrl}}/query
   body: json
   auth: inherit
 }
 
 headers {
-  X-API-Key: secretapikey
+  X-API-Key: {{apiKey}}
   Content-Type: application/json
 }
 
@@ -28,8 +28,15 @@ body:json {
   }
 }
 
-settings {
-  encodeUrl: true
-  timeout: 0
+tests {
+  test("should return 200 OK", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("should return non-empty response", function() {
+    const data = res.getBody();
+    expect(data).to.be.an("object");
+    expect(Object.keys(data).length).to.be.greaterThan(0);
+  });
 }
 

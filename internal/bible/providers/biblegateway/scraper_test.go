@@ -195,3 +195,44 @@ func TestSearchWords_ServerError(t *testing.T) {
 		t.Fatal("expected an error, but got nil")
 	}
 }
+
+func TestGetVerse_CrossChapterQuery(t *testing.T) {
+	// Cross-chapter ranges are now handled by iterating through chapters.
+	// We expect two requests: one for John 1, one for John 2.
+	requestCount := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCount++
+		q := r.URL.Query()
+		search := q.Get("search")
+
+		// First request: John 1, second request: John 2
+		expected := fmt.Sprintf("John %d", requestCount)
+		if search != expected {
+			t.Errorf("request %d: expected search query '%s', got '%s'", requestCount, expected, search)
+		}
+
+		// Return dummy HTML with verse numbers to satisfy verse extraction
+		// Provide at least verse 12 for chapter 1, verses 1-4 for chapter 2
+		html := `<div class="passage-text"><p class="verse"><span><sup class="versenum">12</sup>Verse text</span></p></div>`
+		if requestCount == 2 {
+			html = `<div class="passage-text">
+				<p class="verse"><span><sup class="versenum">1</sup>Verse 1</span></p>
+				<p class="verse"><span><sup class="versenum">2</sup>Verse 2</span></p>
+				<p class="verse"><span><sup class="versenum">3</sup>Verse 3</span></p>
+				<p class="verse"><span><sup class="versenum">4</sup>Verse 4</span></p>
+			</div>`
+		}
+		fmt.Fprintln(w, html)
+	}))
+	defer server.Close()
+
+	scraper := &Scraper{client: server.Client(), baseURL: server.URL}
+
+	_, err := scraper.GetVerse("John", "1", "12-2:4", "ESV")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if requestCount != 2 {
+		t.Errorf("expected 2 requests, got %d", requestCount)
+	}
+}
