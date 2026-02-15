@@ -29,6 +29,20 @@ func TestJSONError(t *testing.T) {
 			expectedBody:   `{"error":{"code":500,"message":"Something went wrong"}}`,
 			expectedStatus: http.StatusInternalServerError,
 		},
+		{
+			name:           "Empty Message",
+			code:           http.StatusBadRequest,
+			message:        "",
+			expectedBody:   `{"error":{"code":400,"message":""}}`,
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "Special Characters",
+			code:           http.StatusInternalServerError,
+			message:        "Error with \"quotes\" and \n newlines",
+			expectedBody:   `{"error":{"code":500,"message":"Error with \"quotes\" and \n newlines"}}`,
+			expectedStatus: http.StatusInternalServerError,
+		},
 	}
 
 	for _, tt := range tests {
@@ -39,6 +53,12 @@ func TestJSONError(t *testing.T) {
 			if status := rr.Code; status != tt.expectedStatus {
 				t.Errorf("handler returned wrong status code: got %v want %v",
 					status, tt.expectedStatus)
+			}
+
+			// Check Content-Type header
+			if contentType := rr.Header().Get("Content-Type"); contentType != "application/json" {
+				t.Errorf("handler returned wrong content type: got %v want %v",
+					contentType, "application/json")
 			}
 
 			// Trim the newline character from the body
