@@ -13,6 +13,16 @@ import (
 	"github.com/xeipuuv/gojsonschema"
 )
 
+const (
+	promptHeaderHistory       = "Previous Conversation Context:\n"
+	promptHistoryItemFormat   = "- %s\n"
+	promptHeaderVerses        = "\n\nBible Verses:\n"
+	promptHeaderSearchResults = "\n\nRelevant Search Results:\n"
+	promptInstructionHTML     = "\n\nPlease format your response using semantic HTML."
+	promptItemFormat          = "%s: %s"
+	promptSectionSeparator    = "\n\n"
+)
+
 // BibleProviderRegistry defines the interface for retrieving Bible providers.
 type BibleProviderRegistry interface {
 	GetProvider(name string) (bible.Provider, error)
@@ -81,7 +91,7 @@ func (s *ChatService) Process(ctx context.Context, req Request) (*Result, error)
 		}
 
 		// 2. Keep the verse HTML content to preserve structure/poetry
-		verseTexts = append(verseTexts, fmt.Sprintf("%s: %s", verseRef, verseHTML))
+		verseTexts = append(verseTexts, fmt.Sprintf(promptItemFormat, verseRef, verseHTML))
 	}
 
 	// 3. Search for words and add to context
@@ -92,7 +102,7 @@ func (s *ChatService) Process(ctx context.Context, req Request) (*Result, error)
 			return nil, fmt.Errorf("failed to search word %s: %w", word, err)
 		}
 		for _, result := range results {
-			searchResults = append(searchResults, fmt.Sprintf("%s: %s", result.Verse, result.Text))
+			searchResults = append(searchResults, fmt.Sprintf(promptItemFormat, result.Verse, result.Text))
 		}
 	}
 
@@ -101,23 +111,23 @@ func (s *ChatService) Process(ctx context.Context, req Request) (*Result, error)
 
 	if historyStr := formatHistory(req.History); historyStr != "" {
 		promptBuilder.WriteString(historyStr)
-		promptBuilder.WriteString("\n\n")
+		promptBuilder.WriteString(promptSectionSeparator)
 	}
 
 	promptBuilder.WriteString(req.Prompt)
 
 	if len(verseTexts) > 0 {
-		promptBuilder.WriteString("\n\nBible Verses:\n")
-		promptBuilder.WriteString(strings.Join(verseTexts, "\n\n"))
+		promptBuilder.WriteString(promptHeaderVerses)
+		promptBuilder.WriteString(strings.Join(verseTexts, promptSectionSeparator))
 	}
 
 	if len(searchResults) > 0 {
-		promptBuilder.WriteString("\n\nRelevant Search Results:\n")
-		promptBuilder.WriteString(strings.Join(searchResults, "\n\n"))
+		promptBuilder.WriteString(promptHeaderSearchResults)
+		promptBuilder.WriteString(strings.Join(searchResults, promptSectionSeparator))
 	}
 
 	// Append instruction to return semantic HTML
-	promptBuilder.WriteString("\n\nPlease format your response using semantic HTML.")
+	promptBuilder.WriteString(promptInstructionHTML)
 
 	llmPrompt := promptBuilder.String()
 
@@ -196,9 +206,9 @@ func formatHistory(history []string) string {
 
 	recentHistory := history[start:]
 	var sb strings.Builder
-	sb.WriteString("Previous Conversation Context:\n")
+	sb.WriteString(promptHeaderHistory)
 	for _, msg := range recentHistory {
-		sb.WriteString(fmt.Sprintf("- %s\n", msg))
+		sb.WriteString(fmt.Sprintf(promptHistoryItemFormat, msg))
 	}
 	return sb.String()
 }
