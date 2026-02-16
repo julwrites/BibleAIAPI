@@ -214,10 +214,20 @@ func (s *Scraper) GetVerse(book, chapter, verse, version string) (string, error)
 	if verse == "" {
 		reference = fmt.Sprintf("%s %s", book, chapter)
 	}
-	encodedReference := url.QueryEscape(reference)
-	url := s.baseURL + fmt.Sprintf("/passage/?search=%s&version=%s&interface=print", encodedReference, version)
+	params := url.Values{}
+	params.Add("search", reference)
+	params.Add("version", version)
+	params.Add("interface", "print")
 
-	req, err := http.NewRequest("GET", url, nil)
+	parsedURL, err := url.Parse(s.baseURL)
+	if err != nil {
+		return "", err
+	}
+	parsedURL.Path = "/passage/"
+	parsedURL.RawQuery = params.Encode()
+	fullURL := parsedURL.String()
+
+	req, err := http.NewRequest("GET", fullURL, nil)
 	if err != nil {
 		return "", err
 	}
@@ -246,94 +256,104 @@ func (s *Scraper) GetVerse(book, chapter, verse, version string) (string, error)
 }
 
 func (s *Scraper) getVersesFromChapter(book, chapter string, startVerse, endVerse int, version string) (string, error) {
-    // Fetch whole chapter
-    reference := fmt.Sprintf("%s %s", book, chapter)
-    encodedReference := url.QueryEscape(reference)
-    url := s.baseURL + fmt.Sprintf("/passage/?search=%s&version=%s&interface=print", encodedReference, version)
+	// Fetch whole chapter
+	reference := fmt.Sprintf("%s %s", book, chapter)
+	params := url.Values{}
+	params.Add("search", reference)
+	params.Add("version", version)
+	params.Add("interface", "print")
 
-    req, err := http.NewRequest("GET", url, nil)
-    if err != nil {
-        return "", err
-    }
+	parsedURL, err := url.Parse(s.baseURL)
+	if err != nil {
+		return "", err
+	}
+	parsedURL.Path = "/passage/"
+	parsedURL.RawQuery = params.Encode()
+	fullURL := parsedURL.String()
 
-    res, err := s.client.Do(req)
-    if err != nil {
-        return "", err
-    }
-    defer res.Body.Close()
+	req, err := http.NewRequest("GET", fullURL, nil)
+	if err != nil {
+		return "", err
+	}
 
-    if res.StatusCode != 200 {
-        return "", fmt.Errorf("failed to fetch chapter, status code: %d", res.StatusCode)
-    }
+	res, err := s.client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer res.Body.Close()
 
-    doc, err := goquery.NewDocumentFromReader(res.Body)
-    if err != nil {
-        return "", err
-    }
+	if res.StatusCode != 200 {
+		return "", fmt.Errorf("failed to fetch chapter, status code: %d", res.StatusCode)
+	}
 
-    passageSelection := doc.Find(".passage-text")
-    if passageSelection.Length() == 0 || strings.Contains(passageSelection.Text(), "No results found") {
-        return "", fmt.Errorf("chapter not found")
-    }
+	doc, err := goquery.NewDocumentFromReader(res.Body)
+	if err != nil {
+		return "", err
+	}
 
-    // Extract verses within range
-    var textBuilder strings.Builder
-    // Handle verse 1 if in range (verse 1 uses span.chapternum instead of sup.versenum)
-    if startVerse == 1 && 1 <= endVerse {
-        passageSelection.Find("span.chapternum").Each(func(i int, chapSel *goquery.Selection) {
-            // Verse 1 container is parent span
-            verseContainer := chapSel.Parent()
-            if verseContainer.Is("span") {
-                // Remove cross-references and footnotes before extracting text
-                verseContainer.Find("sup.crossreference, sup.footnote").Remove()
-                // Remove the chapter number span itself
-                chapSel.Remove()
-                // Get text
-                verseText := strings.TrimSpace(verseContainer.Text())
-                if textBuilder.Len() > 0 {
-                    textBuilder.WriteString(" ")
-                }
-                textBuilder.WriteString(verseText)
-            }
-            // Only process first chapternum (should be only one)
-            return
-        })
-    }
-    passageSelection.Find("sup.versenum").Each(func(i int, supSel *goquery.Selection) {
-        verseNumText := strings.TrimSpace(supSel.Text())
-        verseNumText = strings.TrimRight(verseNumText, "\u00a0")
-        verseNumText = strings.TrimSpace(verseNumText)
-        verseNum, err := strconv.Atoi(verseNumText)
-        if err != nil {
-            return
-        }
-        if verseNum >= startVerse && verseNum <= endVerse {
-            // Find the verse container: parent span or p.verse/p.line
-            verseContainer := supSel.Parent()
-            // If parent is span, maybe its parent is p.verse or p.line
-            if verseContainer.Is("span") {
-                if verseContainer.Parent().Is("p.verse") || verseContainer.Parent().Is("p.line") {
-                    verseContainer = verseContainer.Parent()
-                }
-            }
-            // Remove cross-references and footnotes before extracting text
-            verseContainer.Find("sup.crossreference, sup.footnote").Remove()
-            // Remove the verse number superscript
-            supSel.Remove()
-            // Get text excluding the superscript verse number
-            verseText := strings.TrimSpace(verseContainer.Text())
-            if textBuilder.Len() > 0 {
-                textBuilder.WriteString(" ")
-            }
-            textBuilder.WriteString(verseText)
-        }
-    })
+	passageSelection := doc.Find(".passage-text")
+	if passageSelection.Length() == 0 || strings.Contains(passageSelection.Text(), "No results found") {
+		return "", fmt.Errorf("chapter not found")
+	}
 
-    result := strings.TrimSpace(textBuilder.String())
-    if result == "" {
-        return "", fmt.Errorf("no verses found in range %d-%d", startVerse, endVerse)
-    }
-    return result, nil
+	// Extract verses within range
+	var textBuilder strings.Builder
+	// Handle verse 1 if in range (verse 1 uses span.chapternum instead of sup.versenum)
+	if startVerse == 1 && 1 <= endVerse {
+		passageSelection.Find("span.chapternum").Each(func(i int, chapSel *goquery.Selection) {
+			// Verse 1 container is parent span
+			verseContainer := chapSel.Parent()
+			if verseContainer.Is("span") {
+				// Remove cross-references and footnotes before extracting text
+				verseContainer.Find("sup.crossreference, sup.footnote").Remove()
+				// Remove the chapter number span itself
+				chapSel.Remove()
+				// Get text
+				verseText := strings.TrimSpace(verseContainer.Text())
+				if textBuilder.Len() > 0 {
+					textBuilder.WriteString(" ")
+				}
+				textBuilder.WriteString(verseText)
+			}
+			// Only process first chapternum (should be only one)
+			return
+		})
+	}
+	passageSelection.Find("sup.versenum").Each(func(i int, supSel *goquery.Selection) {
+		verseNumText := strings.TrimSpace(supSel.Text())
+		verseNumText = strings.TrimRight(verseNumText, "\u00a0")
+		verseNumText = strings.TrimSpace(verseNumText)
+		verseNum, err := strconv.Atoi(verseNumText)
+		if err != nil {
+			return
+		}
+		if verseNum >= startVerse && verseNum <= endVerse {
+			// Find the verse container: parent span or p.verse/p.line
+			verseContainer := supSel.Parent()
+			// If parent is span, maybe its parent is p.verse or p.line
+			if verseContainer.Is("span") {
+				if verseContainer.Parent().Is("p.verse") || verseContainer.Parent().Is("p.line") {
+					verseContainer = verseContainer.Parent()
+				}
+			}
+			// Remove cross-references and footnotes before extracting text
+			verseContainer.Find("sup.crossreference, sup.footnote").Remove()
+			// Remove the verse number superscript
+			supSel.Remove()
+			// Get text excluding the superscript verse number
+			verseText := strings.TrimSpace(verseContainer.Text())
+			if textBuilder.Len() > 0 {
+				textBuilder.WriteString(" ")
+			}
+			textBuilder.WriteString(verseText)
+		}
+	})
+
+	result := strings.TrimSpace(textBuilder.String())
+	if result == "" {
+		return "", fmt.Errorf("no verses found in range %d-%d", startVerse, endVerse)
+	}
+	return result, nil
 }
 
 func sanitizeSelection(s *goquery.Selection) (string, error) {
@@ -374,11 +394,22 @@ func sanitizeSnippet(s *goquery.Selection) (string, error) {
 
 // SearchWords searches for a word or phrase and returns a list of relevant verses.
 func (s *Scraper) SearchWords(query, version string) ([]bible.SearchResult, error) {
-	encodedQuery := url.QueryEscape(query)
-	url := s.baseURL + fmt.Sprintf("/quicksearch/?quicksearch=%s&version=%s&interface=print", encodedQuery, version)
-	log.Printf("Scraping URL: %s", url)
+	params := url.Values{}
+	params.Add("quicksearch", query)
+	params.Add("version", version)
+	params.Add("interface", "print")
 
-	req, err := http.NewRequest("GET", url, nil)
+	parsedURL, err := url.Parse(s.baseURL)
+	if err != nil {
+		return nil, err
+	}
+	parsedURL.Path = "/quicksearch/"
+	parsedURL.RawQuery = params.Encode()
+	fullURL := parsedURL.String()
+
+	log.Printf("Scraping URL: %s", fullURL)
+
+	req, err := http.NewRequest("GET", fullURL, nil)
 	if err != nil {
 		return nil, err
 	}
