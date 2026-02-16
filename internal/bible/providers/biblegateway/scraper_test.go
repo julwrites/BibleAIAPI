@@ -249,3 +249,36 @@ func TestGetVerse_CrossChapterQuery(t *testing.T) {
 		t.Error("expected request for John 2")
 	}
 }
+
+func TestSecurity_ParameterInjection(t *testing.T) {
+	var capturedURL string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedURL = r.URL.String()
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`<html><div class="passage-text">John 3:16 text</div><div class="search-result-list"><div class="bible-item"><a class="bible-item-title">John 3:16</a><div class="bible-item-text">Text</div></div></div></html>`))
+	}))
+	defer server.Close()
+
+	scraper := &Scraper{
+		client:  server.Client(),
+		baseURL: server.URL,
+	}
+
+	t.Run("GetVerse injection", func(t *testing.T) {
+		maliciousVersion := "ESV&injected=true"
+		_, _ = scraper.GetVerse("John", "3", "16", maliciousVersion)
+
+		if strings.Contains(capturedURL, "injected=true") && !strings.Contains(capturedURL, "version=ESV%26injected%3Dtrue") {
+			t.Errorf("VULNERABLE: URL contains unescaped injected parameter: %s", capturedURL)
+		}
+	})
+
+	t.Run("SearchWords injection", func(t *testing.T) {
+		maliciousVersion := "ESV&injected=true"
+		_, _ = scraper.SearchWords("love", maliciousVersion)
+
+		if strings.Contains(capturedURL, "injected=true") && !strings.Contains(capturedURL, "version=ESV%26injected%3Dtrue") {
+			t.Errorf("VULNERABLE: URL contains unescaped injected parameter: %s", capturedURL)
+		}
+	})
+}
