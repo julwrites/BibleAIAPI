@@ -12,6 +12,15 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
+var (
+	// languageRegex matches language links: https://biblenow.net/{code} or /{code}
+	// Codes are usually 2 or 3 letters, or hyphenated (e.g. zh-Hant)
+	languageRegex = regexp.MustCompile(`^/([a-z]{2,3}(-[A-Za-z]+)?)$`)
+
+	// versionTextRegex heuristic: Text must look like "Name (CODE)"
+	versionTextRegex = regexp.MustCompile(`^(.*)\s+\(([^)]+)\)$`)
+)
+
 // GetVersions scrapes the available Bible versions from BibleNow.
 // It iterates over all available languages to find versions.
 func (s *Scraper) GetVersions() ([]bible.ProviderVersion, error) {
@@ -98,10 +107,6 @@ func (s *Scraper) extractLanguages(doc *goquery.Document) ([]languageInfo, error
 	var languages []languageInfo
 	seen := make(map[string]bool)
 
-	// Regex to match language links: https://biblenow.net/{code} or /{code}
-	// Codes are usually 2 or 3 letters, or hyphenated (e.g. zh-Hant)
-	re := regexp.MustCompile(`^/([a-z]{2,3}(-[A-Za-z]+)?)$`)
-
 	doc.Find("a").Each(func(i int, sel *goquery.Selection) {
 		href, exists := sel.Attr("href")
 		if !exists {
@@ -112,7 +117,7 @@ func (s *Scraper) extractLanguages(doc *goquery.Document) ([]languageInfo, error
 			href = strings.TrimPrefix(href, s.baseURL)
 		}
 
-		matches := re.FindStringSubmatch(href)
+		matches := languageRegex.FindStringSubmatch(href)
 		if len(matches) > 1 {
 			code := matches[1]
 
@@ -229,8 +234,7 @@ func (s *Scraper) fetchVersionsForLanguage(lang languageInfo) ([]bible.ProviderV
 		}
 
 		// Heuristic: Text must look like "Name (CODE)"
-		re := regexp.MustCompile(`^(.*)\s+\(([^)]+)\)$`)
-		matches := re.FindStringSubmatch(text)
+		matches := versionTextRegex.FindStringSubmatch(text)
 
 		name := text
 		code := ""
