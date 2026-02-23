@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 
 	"bible-api-service/internal/bible"
 	"bible-api-service/internal/util"
@@ -183,27 +184,51 @@ func (s *Scraper) GetVerse(book, chapter, verse, version string) (string, error)
 
 	// If cross-chapter range, iterate through chapters
 	if startChapterVal != endChapter {
+		if endChapter < startChapterVal {
+			return "", nil
+		}
+		numChapters := endChapter - startChapterVal + 1
+		chapterTexts := make([]string, numChapters)
+		errChan := make(chan error, numChapters)
+		var wg sync.WaitGroup
+
+		for i := 0; i < numChapters; i++ {
+			wg.Add(1)
+			go func(i int) {
+				defer wg.Done()
+				currentChap := startChapterVal + i
+				currentStartV := 1
+				currentEndV := 999
+
+				if currentChap == startChapterVal {
+					currentStartV = startVerse
+				}
+				if currentChap == endChapter {
+					currentEndV = endVerse
+				}
+
+				text, err := s.getVersesFromChapter(book, strconv.Itoa(currentChap), currentStartV, currentEndV, version)
+				if err != nil {
+					errChan <- fmt.Errorf("failed to fetch chapter %d: %v", currentChap, err)
+					return
+				}
+				chapterTexts[i] = text
+			}(i)
+		}
+
+		wg.Wait()
+		close(errChan)
+
+		if len(errChan) > 0 {
+			return "", <-errChan
+		}
+
 		var allTextBuilder strings.Builder
-		for currentChap := startChapterVal; currentChap <= endChapter; currentChap++ {
-			currentStartV := 1
-			currentEndV := 999
-
-			if currentChap == startChapterVal {
-				currentStartV = startVerse
-			}
-			if currentChap == endChapter {
-				currentEndV = endVerse
-			}
-
-			chapterText, err := s.getVersesFromChapter(book, strconv.Itoa(currentChap), currentStartV, currentEndV, version)
-			if err != nil {
-				return "", fmt.Errorf("failed to fetch chapter %d: %v", currentChap, err)
-			}
-
-			if allTextBuilder.Len() > 0 && chapterText != "" {
+		for _, text := range chapterTexts {
+			if allTextBuilder.Len() > 0 && text != "" {
 				allTextBuilder.WriteString("\n")
 			}
-			allTextBuilder.WriteString(chapterText)
+			allTextBuilder.WriteString(text)
 		}
 		return strings.TrimSpace(allTextBuilder.String()), nil
 	}
