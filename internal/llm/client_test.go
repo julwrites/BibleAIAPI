@@ -44,6 +44,7 @@ func TestNewFallbackClient(t *testing.T) {
 	secretsClient := &secrets.EnvClient{}
 
 	t.Run("LLM_PROVIDERS not set", func(t *testing.T) {
+		resetLLMConfig()
 		os.Unsetenv("LLM_PROVIDERS")
 		os.Setenv("DEEPSEEK_API_KEY", "dummy-key")
 		defer os.Unsetenv("DEEPSEEK_API_KEY")
@@ -64,6 +65,7 @@ func TestNewFallbackClient(t *testing.T) {
 	})
 
 	t.Run("Unsupported provider", func(t *testing.T) {
+		resetLLMConfig()
 		os.Setenv("LLM_PROVIDERS", "unsupported")
 		defer os.Unsetenv("LLM_PROVIDERS")
 		_, err := NewFallbackClient(context.Background(), secretsClient)
@@ -76,6 +78,7 @@ func TestNewFallbackClient(t *testing.T) {
 	})
 
 	t.Run("All providers fail initialization", func(t *testing.T) {
+		resetLLMConfig()
 		os.Setenv("LLM_PROVIDERS", "openai")
 		// Not setting OPENAI_API_KEY should cause failure
 		defer os.Unsetenv("LLM_PROVIDERS")
@@ -91,6 +94,7 @@ func TestNewFallbackClient(t *testing.T) {
 	})
 
 	t.Run("Valid provider", func(t *testing.T) {
+		resetLLMConfig()
 		os.Setenv("LLM_PROVIDERS", "openai")
 		os.Setenv("OPENAI_API_KEY", "test-key")
 		defer os.Unsetenv("LLM_PROVIDERS")
@@ -111,6 +115,7 @@ func TestNewFallbackClient(t *testing.T) {
 	})
 
 	t.Run("Mixed providers", func(t *testing.T) {
+		resetLLMConfig()
 		os.Setenv("LLM_PROVIDERS", "openai,unsupported")
 		os.Setenv("OPENAI_API_KEY", "test-key")
 		defer os.Unsetenv("LLM_PROVIDERS")

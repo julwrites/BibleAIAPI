@@ -7,6 +7,7 @@ import (
 	"log"
 	"reflect"
 	"strings"
+	"sync"
 	"time"
 
 	"bible-api-service/internal/llm/deepseek"
@@ -24,78 +25,105 @@ type FallbackClient struct {
 	clientsMap map[string]provider.LLMClient
 }
 
+var (
+	cachedLLMConfig    map[string]string
+	cachedLLMOrder     []string
+	cachedLLMConfigErr error
+	parseLLMConfigOnce sync.Once
+)
+
 // parseLLMConfig parses the LLM configuration from environment variable or secret.
 // It returns a map of provider name to model name and a slice of provider names in the order they appear.
 func parseLLMConfig(ctx context.Context, secretsClient secrets.Client) (map[string]string, []string, error) {
-	configJSON, err := secrets.Get(ctx, secretsClient, "LLM_CONFIG")
-	if err != nil {
-		// Fall back to LLM_PROVIDERS for backward compatibility
-		providerNames, err := secrets.Get(ctx, secretsClient, "LLM_PROVIDERS")
+	parseLLMConfigOnce.Do(func() {
+		configJSON, err := secrets.Get(ctx, secretsClient, "LLM_CONFIG")
 		if err != nil {
-			log.Printf("LLM_CONFIG and LLM_PROVIDERS not set, defaulting to {\"deepseek\":\"deepseek-chat\"}: %v", err)
-			return map[string]string{"deepseek": "deepseek-chat"}, []string{"deepseek"}, nil
+			// Fall back to LLM_PROVIDERS for backward compatibility
+			providerNames, err := secrets.Get(ctx, secretsClient, "LLM_PROVIDERS")
+			if err != nil {
+				log.Printf("LLM_CONFIG and LLM_PROVIDERS not set, defaulting to {\"deepseek\":\"deepseek-chat\"}: %v", err)
+				cachedLLMConfig = map[string]string{"deepseek": "deepseek-chat"}
+				cachedLLMOrder = []string{"deepseek"}
+				cachedLLMConfigErr = nil
+				return
+			}
+			log.Printf("WARNING: LLM_PROVIDERS is deprecated, use LLM_CONFIG JSON instead")
+			// Convert comma-separated list to map with empty model names
+			providers := strings.Split(providerNames, ",")
+			config := make(map[string]string, len(providers))
+			for _, p := range providers {
+				config[p] = "" // Empty model name will use provider default
+			}
+			cachedLLMConfig = config
+			cachedLLMOrder = providers
+			cachedLLMConfigErr = nil
+			return
 		}
-		log.Printf("WARNING: LLM_PROVIDERS is deprecated, use LLM_CONFIG JSON instead")
-		// Convert comma-separated list to map with empty model names
-		providers := strings.Split(providerNames, ",")
-		config := make(map[string]string, len(providers))
-		for _, p := range providers {
-			config[p] = "" // Empty model name will use provider default
-		}
-		return config, providers, nil
-	}
 
-	// Parse JSON while preserving key order
-	decoder := json.NewDecoder(strings.NewReader(configJSON))
-	decoder.UseNumber()
+		// Parse JSON while preserving key order
+		decoder := json.NewDecoder(strings.NewReader(configJSON))
+		decoder.UseNumber()
 
-	// Read opening brace
-	token, err := decoder.Token()
-	if err != nil {
-		return nil, nil, fmt.Errorf("invalid LLM_CONFIG JSON: %w", err)
-	}
-	if delim, ok := token.(json.Delim); !ok || delim != '{' {
-		return nil, nil, fmt.Errorf("invalid LLM_CONFIG JSON: expected object")
-	}
-
-	config := make(map[string]string)
-	var order []string
-
-	for decoder.More() {
-		// Read key
+		// Read opening brace
 		token, err := decoder.Token()
 		if err != nil {
-			return nil, nil, fmt.Errorf("invalid LLM_CONFIG JSON: %w", err)
+			cachedLLMConfigErr = fmt.Errorf("invalid LLM_CONFIG JSON: %w", err)
+			return
 		}
-		key, ok := token.(string)
-		if !ok {
-			return nil, nil, fmt.Errorf("invalid LLM_CONFIG JSON: key must be string")
+		if delim, ok := token.(json.Delim); !ok || delim != '{' {
+			cachedLLMConfigErr = fmt.Errorf("invalid LLM_CONFIG JSON: expected object")
+			return
 		}
 
-		// Read value
+		config := make(map[string]string)
+		var order []string
+
+		for decoder.More() {
+			// Read key
+			token, err := decoder.Token()
+			if err != nil {
+				cachedLLMConfigErr = fmt.Errorf("invalid LLM_CONFIG JSON: %w", err)
+				return
+			}
+			key, ok := token.(string)
+			if !ok {
+				cachedLLMConfigErr = fmt.Errorf("invalid LLM_CONFIG JSON: key must be string")
+				return
+			}
+
+			// Read value
+			token, err = decoder.Token()
+			if err != nil {
+				cachedLLMConfigErr = fmt.Errorf("invalid LLM_CONFIG JSON: %w", err)
+				return
+			}
+			value, ok := token.(string)
+			if !ok {
+				cachedLLMConfigErr = fmt.Errorf("invalid LLM_CONFIG JSON: value must be string for key %q", key)
+				return
+			}
+
+			config[key] = value
+			order = append(order, key)
+		}
+
+		// Read closing brace
 		token, err = decoder.Token()
 		if err != nil {
-			return nil, nil, fmt.Errorf("invalid LLM_CONFIG JSON: %w", err)
+			cachedLLMConfigErr = fmt.Errorf("invalid LLM_CONFIG JSON: %w", err)
+			return
 		}
-		value, ok := token.(string)
-		if !ok {
-			return nil, nil, fmt.Errorf("invalid LLM_CONFIG JSON: value must be string for key %q", key)
+		if delim, ok := token.(json.Delim); !ok || delim != '}' {
+			cachedLLMConfigErr = fmt.Errorf("invalid LLM_CONFIG JSON: malformed object")
+			return
 		}
 
-		config[key] = value
-		order = append(order, key)
-	}
+		cachedLLMConfig = config
+		cachedLLMOrder = order
+		cachedLLMConfigErr = nil
+	})
 
-	// Read closing brace
-	token, err = decoder.Token()
-	if err != nil {
-		return nil, nil, fmt.Errorf("invalid LLM_CONFIG JSON: %w", err)
-	}
-	if delim, ok := token.(json.Delim); !ok || delim != '}' {
-		return nil, nil, fmt.Errorf("invalid LLM_CONFIG JSON: malformed object")
-	}
-
-	return config, order, nil
+	return cachedLLMConfig, cachedLLMOrder, cachedLLMConfigErr
 }
 
 // NewFallbackClient creates a new FallbackClient with the providers specified in the LLM_CONFIG JSON or LLM_PROVIDERS environment variable/secret.
@@ -245,4 +273,12 @@ func (c *FallbackClient) Stream(ctx context.Context, prompt string) (<-chan stri
 // Name returns the name of the client.
 func (c *FallbackClient) Name() string {
 	return "fallback"
+}
+
+// resetLLMConfig resets the cached LLM configuration. This is used for testing purposes.
+func resetLLMConfig() {
+	cachedLLMConfig = nil
+	cachedLLMOrder = nil
+	cachedLLMConfigErr = nil
+	parseLLMConfigOnce = sync.Once{}
 }
