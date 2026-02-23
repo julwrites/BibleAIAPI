@@ -140,6 +140,91 @@ func TestParseLLMConfig(t *testing.T) {
 			t.Error("expected error for non-string value")
 		}
 	})
+
+	t.Run("Empty JSON Object", func(t *testing.T) {
+		resetLLMConfig()
+		mockSecrets := &mockSecretsClient{
+			getSecretFunc: func(ctx context.Context, name string) (string, error) {
+				if name == "LLM_CONFIG" {
+					return "{}", nil
+				}
+				return "", errors.New("not found")
+			},
+		}
+
+		config, order, err := parseLLMConfig(ctx, mockSecrets)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(config) != 0 {
+			t.Errorf("expected empty config, got %v", config)
+		}
+		if len(order) != 0 {
+			t.Errorf("expected empty order, got %v", order)
+		}
+	})
+
+	t.Run("Duplicate Keys in JSON", func(t *testing.T) {
+		resetLLMConfig()
+		mockSecrets := &mockSecretsClient{
+			getSecretFunc: func(ctx context.Context, name string) (string, error) {
+				if name == "LLM_CONFIG" {
+					return `{"openai": "gpt-3.5", "openai": "gpt-4"}`, nil
+				}
+				return "", errors.New("not found")
+			},
+		}
+
+		config, order, err := parseLLMConfig(ctx, mockSecrets)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if config["openai"] != "gpt-4" {
+			t.Errorf("expected openai to be gpt-4, got %s", config["openai"])
+		}
+		if len(order) != 2 {
+			// Depending on parser implementation.
+			// json.Decoder token logic appends each key it sees to order.
+			// "openai", "gpt-3.5", "openai", "gpt-4".
+			// So order will be ["openai", "openai"].
+			if len(order) != 2 || order[0] != "openai" || order[1] != "openai" {
+				t.Errorf("unexpected order with duplicates: %v", order)
+			}
+		}
+	})
+
+	t.Run("Legacy LLM_PROVIDERS with Spaces and Extra Commas", func(t *testing.T) {
+		resetLLMConfig()
+		mockSecrets := &mockSecretsClient{
+			getSecretFunc: func(ctx context.Context, name string) (string, error) {
+				if name == "LLM_PROVIDERS" {
+					return " openai , , deepseek ", nil
+				}
+				return "", errors.New("not found")
+			},
+		}
+
+		config, order, err := parseLLMConfig(ctx, mockSecrets)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		// " openai ", "", " deepseek " (depending on Split behavior with consecutive delimiters)
+		// strings.Split(" openai , , deepseek ", ",") -> [" openai ", " ", " deepseek "]
+
+		if len(order) != 3 {
+			t.Errorf("expected 3 elements, got %d: %v", len(order), order)
+		}
+		if _, ok := config[" openai "]; !ok {
+			t.Errorf("expected key ' openai ' to exist")
+		}
+		if _, ok := config[" "]; !ok {
+			t.Errorf("expected key ' ' to exist")
+		}
+		if _, ok := config[" deepseek "]; !ok {
+			t.Errorf("expected key ' deepseek ' to exist")
+		}
+	})
 }
 
 func TestFallbackClient_Name(t *testing.T) {
