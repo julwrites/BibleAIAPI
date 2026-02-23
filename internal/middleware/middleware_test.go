@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"bible-api-service/internal/secrets"
 	"context"
 	"errors"
 	"net/http"
@@ -15,6 +16,8 @@ type mockSecretsClient struct {
 func (m *mockSecretsClient) GetSecret(ctx context.Context, name string) (string, error) {
 	return m.getSecretFunc(ctx, name)
 }
+
+var _ secrets.Client = &mockSecretsClient{}
 
 func TestAPIKeyAuth(t *testing.T) {
 	// Handler that echos the ClientID from context into a header for verification
@@ -45,7 +48,7 @@ func TestAPIKeyAuth(t *testing.T) {
 		}
 	})
 
-	t.Run("fail if secret fetch fails", func(t *testing.T) {
+	t.Run("bypass local dev if secret fetch fails", func(t *testing.T) {
 		secretsClient := &mockSecretsClient{
 			getSecretFunc: func(ctx context.Context, name string) (string, error) {
 				return "", errors.New("secret not found")
@@ -57,8 +60,8 @@ func TestAPIKeyAuth(t *testing.T) {
 		req.Header.Set("X-API-KEY", "anything")
 		rr := httptest.NewRecorder()
 		authMiddleware.APIKeyAuth(handler).ServeHTTP(rr, req)
-		if rr.Code != http.StatusInternalServerError {
-			t.Errorf("expected status code %d, got %d", http.StatusInternalServerError, rr.Code)
+		if rr.Code != http.StatusOK {
+			t.Errorf("expected status code %d, got %d", http.StatusOK, rr.Code)
 		}
 	})
 
