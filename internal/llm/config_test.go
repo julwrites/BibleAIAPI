@@ -18,6 +18,7 @@ func TestParseLLMConfig(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("Valid JSON Config", func(t *testing.T) {
+		resetLLMConfig()
 		jsonConfig := `{"openai":"gpt-4","deepseek":"deepseek-chat"}`
 		mockSecrets := &mockSecretsClient{
 			getSecretFunc: func(ctx context.Context, name string) (string, error) {
@@ -45,6 +46,7 @@ func TestParseLLMConfig(t *testing.T) {
 	})
 
 	t.Run("Legacy LLM_PROVIDERS", func(t *testing.T) {
+		resetLLMConfig()
 		mockSecrets := &mockSecretsClient{
 			getSecretFunc: func(ctx context.Context, name string) (string, error) {
 				if name == "LLM_PROVIDERS" {
@@ -68,6 +70,7 @@ func TestParseLLMConfig(t *testing.T) {
 	})
 
 	t.Run("Default Config", func(t *testing.T) {
+		resetLLMConfig()
 		mockSecrets := &mockSecretsClient{
 			getSecretFunc: func(ctx context.Context, name string) (string, error) {
 				return "", errors.New("not found")
@@ -88,6 +91,7 @@ func TestParseLLMConfig(t *testing.T) {
 	})
 
 	t.Run("Invalid JSON", func(t *testing.T) {
+		resetLLMConfig()
 		mockSecrets := &mockSecretsClient{
 			getSecretFunc: func(ctx context.Context, name string) (string, error) {
 				if name == "LLM_CONFIG" {
@@ -104,6 +108,7 @@ func TestParseLLMConfig(t *testing.T) {
 	})
 
 	t.Run("Invalid JSON Type (Array)", func(t *testing.T) {
+		resetLLMConfig()
 		mockSecrets := &mockSecretsClient{
 			getSecretFunc: func(ctx context.Context, name string) (string, error) {
 				if name == "LLM_CONFIG" {
@@ -120,6 +125,7 @@ func TestParseLLMConfig(t *testing.T) {
 	})
 
 	t.Run("Invalid JSON Value Type", func(t *testing.T) {
+		resetLLMConfig()
 		mockSecrets := &mockSecretsClient{
 			getSecretFunc: func(ctx context.Context, name string) (string, error) {
 				if name == "LLM_CONFIG" {
