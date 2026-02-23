@@ -134,6 +134,129 @@ func TestParseLLMConfig(t *testing.T) {
 			t.Error("expected error for non-string value")
 		}
 	})
+
+	t.Run("Empty JSON Object", func(t *testing.T) {
+		mockSecrets := &mockSecretsClient{
+			getSecretFunc: func(ctx context.Context, name string) (string, error) {
+				if name == "LLM_CONFIG" {
+					return `{}`, nil
+				}
+				return "", errors.New("not found")
+			},
+		}
+
+		config, order, err := parseLLMConfig(ctx, mockSecrets)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(config) != 0 || len(order) != 0 {
+			t.Errorf("expected empty config and order, got %v, %v", config, order)
+		}
+	})
+
+	t.Run("Invalid JSON Key Type", func(t *testing.T) {
+		mockSecrets := &mockSecretsClient{
+			getSecretFunc: func(ctx context.Context, name string) (string, error) {
+				if name == "LLM_CONFIG" {
+					// json.Decoder.Token() will return json.Delim or number if key is not string
+					// Note: standard JSON doesn't allow non-string keys, but we test the decoder's handling
+					return `{123: "value"}`, nil
+				}
+				return "", errors.New("not found")
+			},
+		}
+
+		_, _, err := parseLLMConfig(ctx, mockSecrets)
+		if err == nil {
+			t.Error("expected error for non-string key")
+		}
+	})
+
+	t.Run("Malformed JSON After Valid Part", func(t *testing.T) {
+		mockSecrets := &mockSecretsClient{
+			getSecretFunc: func(ctx context.Context, name string) (string, error) {
+				if name == "LLM_CONFIG" {
+					return `{"openai": "gpt-4", "deepseek"}`, nil
+				}
+				return "", errors.New("not found")
+			},
+		}
+
+		_, _, err := parseLLMConfig(ctx, mockSecrets)
+		if err == nil {
+			t.Error("expected error for malformed JSON")
+		}
+	})
+
+	t.Run("Not a JSON Object (String)", func(t *testing.T) {
+		mockSecrets := &mockSecretsClient{
+			getSecretFunc: func(ctx context.Context, name string) (string, error) {
+				if name == "LLM_CONFIG" {
+					return `"just a string"`, nil
+				}
+				return "", errors.New("not found")
+			},
+		}
+
+		_, _, err := parseLLMConfig(ctx, mockSecrets)
+		if err == nil {
+			t.Error("expected error for non-object JSON")
+		}
+	})
+
+	t.Run("Duplicate Keys in JSON", func(t *testing.T) {
+		mockSecrets := &mockSecretsClient{
+			getSecretFunc: func(ctx context.Context, name string) (string, error) {
+				if name == "LLM_CONFIG" {
+					return `{"openai": "gpt-3.5", "openai": "gpt-4"}`, nil
+				}
+				return "", errors.New("not found")
+			},
+		}
+
+		config, order, err := parseLLMConfig(ctx, mockSecrets)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if len(order) != 2 {
+			t.Errorf("expected 2 in order, got %d", len(order))
+		}
+		if config["openai"] != "gpt-4" {
+			t.Errorf("expected openai to be gpt-4, got %s", config["openai"])
+		}
+	})
+
+	t.Run("Legacy LLM_PROVIDERS with Spaces and Extra Commas", func(t *testing.T) {
+		mockSecrets := &mockSecretsClient{
+			getSecretFunc: func(ctx context.Context, name string) (string, error) {
+				if name == "LLM_PROVIDERS" {
+					return " openai , , deepseek ", nil
+				}
+				return "", errors.New("not found")
+			},
+		}
+
+		config, order, err := parseLLMConfig(ctx, mockSecrets)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		// " openai ", " ", " deepseek "
+		if len(order) != 3 {
+			t.Errorf("expected 3 elements, got %d: %v", len(order), order)
+		}
+
+		if _, ok := config[" openai "]; !ok {
+			t.Error("expected key ' openai ' to exist")
+		}
+		if _, ok := config[" "]; !ok {
+			t.Error("expected key ' ' to exist")
+		}
+		if _, ok := config[" deepseek "]; !ok {
+			t.Error("expected key ' deepseek ' to exist")
+		}
+	})
 }
 
 func TestFallbackClient_Name(t *testing.T) {
