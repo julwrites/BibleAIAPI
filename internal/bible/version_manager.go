@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"sync"
 
 	"gopkg.in/yaml.v2"
 )
@@ -13,7 +12,6 @@ import (
 type VersionManager struct {
 	versions []Version
 	byCode   map[string]Version
-	mu       sync.RWMutex
 }
 
 // NewVersionManager creates a new VersionManager by loading versions from the config file.
@@ -42,8 +40,6 @@ func NewVersionManager(path string) (*VersionManager, error) {
 
 // GetAll returns all available versions.
 func (vm *VersionManager) GetAll() []Version {
-	vm.mu.RLock()
-	defer vm.mu.RUnlock()
 	// Return a copy to avoid mutation?
 	// For now, slice of structs is copy-ish (structs are copied if accessed by value, but slice backing array is shared)
 	// Given we only read, it's fine.
@@ -52,9 +48,6 @@ func (vm *VersionManager) GetAll() []Version {
 
 // GetProviderCode returns the provider-specific code for a given unified version code.
 func (vm *VersionManager) GetProviderCode(unifiedCode, provider string) (string, error) {
-	vm.mu.RLock()
-	defer vm.mu.RUnlock()
-
 	if unifiedCode == "" {
 		return "", nil // Or default?
 	}
@@ -79,9 +72,6 @@ func (vm *VersionManager) GetProviderCode(unifiedCode, provider string) (string,
 // It iterates through the preferredProviders list and selects the first one that supports the version.
 // If preferredProviders is nil or empty, it defaults to ["biblegateway", "biblehub", "biblenow"].
 func (vm *VersionManager) SelectProvider(unifiedCode string, preferredProviders []string) (string, string, error) {
-	vm.mu.RLock()
-	defer vm.mu.RUnlock()
-
 	if len(preferredProviders) == 0 {
 		preferredProviders = []string{"biblegateway", "biblehub", "biblenow"}
 	}
@@ -104,9 +94,6 @@ func (vm *VersionManager) SelectProvider(unifiedCode string, preferredProviders 
 // GetPrioritizedProviders returns a list of providers that support the given version,
 // prioritized by the preferredProviders list (or default order).
 func (vm *VersionManager) GetPrioritizedProviders(unifiedCode string, preferredProviders []string) ([]ProviderConfig, error) {
-	vm.mu.RLock()
-	defer vm.mu.RUnlock()
-
 	if len(preferredProviders) == 0 {
 		preferredProviders = []string{"biblegateway", "biblehub", "biblenow", "biblecom"}
 	}
