@@ -40,6 +40,13 @@ func TestVersionsConfigValidation(t *testing.T) {
 
 	seenCodes := make(map[string]bool)
 
+	// List of versions that must be present (e.g. manually added ones like SUV)
+	requiredVersions := map[string]string{
+		"SUV": "biblenow",
+		"BHN": "biblenow",
+	}
+	foundRequired := make(map[string]bool)
+
 	for i, v := range versions {
 		if v.Code == "" {
 			t.Errorf("version at index %d has empty Code", i)
@@ -60,6 +67,13 @@ func TestVersionsConfigValidation(t *testing.T) {
 			t.Errorf("version %s has no providers", v.Code)
 		}
 
+		// Check for required versions
+		if reqProvider, required := requiredVersions[v.Code]; required {
+			if _, has := v.Providers[reqProvider]; has {
+				foundRequired[v.Code] = true
+			}
+		}
+
 		for providerName, providerCode := range v.Providers {
 			if !knownProviders[providerName] {
 				t.Errorf("version %s has unknown provider: %s", v.Code, providerName)
@@ -67,6 +81,12 @@ func TestVersionsConfigValidation(t *testing.T) {
 			if providerCode == "" {
 				t.Errorf("version %s has empty code for provider %s", v.Code, providerName)
 			}
+		}
+	}
+
+	for code, provider := range requiredVersions {
+		if !foundRequired[code] {
+			t.Errorf("Required version %s with provider %s not found in versions.yaml", code, provider)
 		}
 	}
 }

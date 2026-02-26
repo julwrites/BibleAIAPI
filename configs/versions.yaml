@@ -1732,3 +1732,13 @@
   language: 한국어 (KO)
   providers:
     biblegateway: KOERV
+- code: SUV
+  name: Swahili Union Version (SUV)
+  language: Kiswahili (SW)
+  providers:
+    biblenow: sw/biblia/swahili-union-version
+- code: BHN
+  name: Biblia Habari Njema (BHN)
+  language: Kiswahili (SW)
+  providers:
+    biblenow: sw/biblia/biblia-habari-njema
