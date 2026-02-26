@@ -180,6 +180,15 @@ func TestRun_ScraperError(t *testing.T) {
 	outputPath := filepath.Join(tempDir, "versions.yaml")
 
 	err := run(providers, outputPath)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "status code: 500")
+	// Expect no error, just logging and skipping
+	assert.NoError(t, err)
+
+	// File should exist but contain no versions
+	data, err := os.ReadFile(outputPath)
+	require.NoError(t, err)
+
+	var versions []bible.Version
+	err = yaml.Unmarshal(data, &versions)
+	require.NoError(t, err)
+	assert.Empty(t, versions)
 }
