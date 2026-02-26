@@ -156,11 +156,58 @@ func TestParseLLMConfig(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if len(config) != 0 {
-			t.Errorf("expected empty config, got %v", config)
+		if len(config) != 0 || len(order) != 0 {
+			t.Errorf("expected empty config and order, got %v, %v", config, order)
 		}
-		if len(order) != 0 {
-			t.Errorf("expected empty order, got %v", order)
+	})
+
+	t.Run("Invalid JSON Key Type", func(t *testing.T) {
+		mockSecrets := &mockSecretsClient{
+			getSecretFunc: func(ctx context.Context, name string) (string, error) {
+				if name == "LLM_CONFIG" {
+					// json.Decoder.Token() will return json.Delim or number if key is not string
+					// Note: standard JSON doesn't allow non-string keys, but we test the decoder's handling
+					return `{123: "value"}`, nil
+				}
+				return "", errors.New("not found")
+			},
+		}
+
+		_, _, err := parseLLMConfig(ctx, mockSecrets)
+		if err == nil {
+			t.Error("expected error for non-string key")
+		}
+	})
+
+	t.Run("Malformed JSON After Valid Part", func(t *testing.T) {
+		mockSecrets := &mockSecretsClient{
+			getSecretFunc: func(ctx context.Context, name string) (string, error) {
+				if name == "LLM_CONFIG" {
+					return `{"openai": "gpt-4", "deepseek"}`, nil
+				}
+				return "", errors.New("not found")
+			},
+		}
+
+		_, _, err := parseLLMConfig(ctx, mockSecrets)
+		if err == nil {
+			t.Error("expected error for malformed JSON")
+		}
+	})
+
+	t.Run("Not a JSON Object (String)", func(t *testing.T) {
+		mockSecrets := &mockSecretsClient{
+			getSecretFunc: func(ctx context.Context, name string) (string, error) {
+				if name == "LLM_CONFIG" {
+					return `"just a string"`, nil
+				}
+				return "", errors.New("not found")
+			},
+		}
+
+		_, _, err := parseLLMConfig(ctx, mockSecrets)
+		if err == nil {
+			t.Error("expected error for non-object JSON")
 		}
 	})
 

@@ -17,6 +17,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"sync"
 )
 
 // QueryHandler is the main handler for the /query endpoint.
@@ -45,8 +46,22 @@ func NewQueryHandler(secretsClient secrets.Client, versionManager *bible.Version
 	bibleManager.RegisterProvider("biblenow", nowProvider)
 	bibleManager.RegisterProvider("biblecom", comProvider)
 
+	var (
+		llmClient provider.LLMClient
+		mu        sync.Mutex
+	)
+
 	getLLMClient := func() (provider.LLMClient, error) {
-		return llm.NewFallbackClient(context.Background(), secretsClient)
+		mu.Lock()
+		defer mu.Unlock()
+
+		if llmClient != nil {
+			return llmClient, nil
+		}
+
+		var err error
+		llmClient, err = llm.NewFallbackClient(context.Background(), secretsClient)
+		return llmClient, err
 	}
 	return &QueryHandler{
 		ProviderManager: bibleManager,
