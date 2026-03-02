@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 func TestGetVerses(t *testing.T) {
@@ -95,5 +96,28 @@ func TestOpenQuery(t *testing.T) {
 
 	if resp.Text != "Here is the answer" {
 		t.Errorf("Expected response, got %v", resp.Text)
+	}
+}
+
+func TestNewClient(t *testing.T) {
+	baseURL := "http://api.example.com"
+	apiKey := "test-api-key"
+	client := NewClient(baseURL, apiKey)
+
+	if client.BaseURL != baseURL {
+		t.Errorf("Expected BaseURL %s, got %s", baseURL, client.BaseURL)
+	}
+
+	if client.APIKey != apiKey {
+		t.Errorf("Expected APIKey %s, got %s", apiKey, client.APIKey)
+	}
+
+	if client.HTTPClient == nil {
+		t.Fatal("Expected HTTPClient to be initialized, got nil")
+	}
+
+	expectedTimeout := 60 * time.Second
+	if client.HTTPClient.Timeout != expectedTimeout {
+		t.Errorf("Expected Timeout %v, got %v", expectedTimeout, client.HTTPClient.Timeout)
 	}
 }
