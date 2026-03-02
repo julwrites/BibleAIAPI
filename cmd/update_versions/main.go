@@ -53,8 +53,16 @@ func run(providers map[string]bible.Provider, outputPath string) error {
 		log.Printf("Warning: Could not read existing config (or empty): %v", err)
 	}
 
+	// Sort provider names to ensure deterministic results
+	pNames := make([]string, 0, len(providers))
+	for k := range providers {
+		pNames = append(pNames, k)
+	}
+	sort.Strings(pNames)
+
 	// 2. Fetch from providers
-	for pName, provider := range providers {
+	for _, pName := range pNames {
+		provider := providers[pName]
 		log.Printf("Fetching versions from %s...", pName)
 		pVersions, err := provider.GetVersions()
 		if err != nil {
@@ -85,8 +93,8 @@ func run(providers map[string]bible.Provider, outputPath string) error {
 			}
 			versionMap[code].Providers[pName] = v.Value
 
-			// If current provider is biblegateway, update metadata as it tends to be more accurate (e.g. language)
-			// But careful not to overwrite good data with bad data if keys exist
+			// Update metadata: prefer biblegateway for Name/Language as it tends to be most accurate.
+			// Otherwise, only update if the current field is empty or generic ("Unknown").
 			if pName == "biblegateway" {
 				if v.Name != "" {
 					versionMap[code].Name = v.Name
@@ -95,14 +103,12 @@ func run(providers map[string]bible.Provider, outputPath string) error {
 					versionMap[code].Language = v.Language
 				}
 			} else {
-				// Only update if missing or if existing is default/unknown
-				if versionMap[code].Language == "" || versionMap[code].Language == "English" || versionMap[code].Language == "Unknown" {
-					if v.Language != "English" && v.Language != "" {
-						versionMap[code].Language = v.Language
-					}
-				}
 				if versionMap[code].Name == "" {
 					versionMap[code].Name = v.Name
+				}
+				// Only update language if current is unknown or empty, and new is specific.
+				if (versionMap[code].Language == "" || versionMap[code].Language == "Unknown") && v.Language != "" && v.Language != "Unknown" {
+					versionMap[code].Language = v.Language
 				}
 			}
 		}

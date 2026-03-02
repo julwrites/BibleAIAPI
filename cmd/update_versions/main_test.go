@@ -27,6 +27,7 @@ func TestRun_Success(t *testing.T) {
 	<html>
 		<body>
 			<select class="search-dropdown" name="version">
+				<option>---English---</option>
 				<option value="ESV">English Standard Version</option>
 				<option>---Spanish---</option>
 				<option value="RVR1960">Reina-Valera 1960</option>
@@ -123,8 +124,8 @@ func TestRun_Success(t *testing.T) {
 	esv := findVersion(versions, "ESV")
 	require.NotNil(t, esv)
 	assert.Equal(t, "English Standard Version", esv.Name)
-	// BibleGateway sets language to Unknown because it was before ---Spanish---
-	assert.Equal(t, "Unknown", esv.Language)
+	// BibleGateway sets language to English because it was after ---English---
+	assert.Equal(t, "English", esv.Language)
 	assert.Equal(t, "ESV", esv.Providers["biblegateway"])
 	assert.Equal(t, "esv", esv.Providers["biblehub"])
 	assert.Equal(t, "en/bible/english-standard-version", esv.Providers["biblenow"])
